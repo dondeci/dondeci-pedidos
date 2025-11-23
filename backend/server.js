@@ -11,7 +11,6 @@ import pkg from 'pg';
 const { Pool } = pkg;
 
 
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const frontendPath = path.join(__dirname, '../frontend/dist');
@@ -182,9 +181,6 @@ initializeTablesPostgres();
 
 
 
-
-
-
 // ============= RUTAS: AUTENTICACIÓN =============
 
 // POST /api/auth/login
@@ -251,7 +247,7 @@ app.post('/api/users', async (req, res) => {
 // DELETE /api/users/:id - Eliminar usuario
 app.delete('/api/users/:id', async (req, res) => {
     try {
-        await runAsync('DELETE FROM usuarios WHERE id = ?', [req.params.id]);
+        await runAsync('DELETE FROM usuarios WHERE id = $1', [req.params.id]);
         res.json({ message: 'Usuario eliminado' });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -285,7 +281,6 @@ app.post('/api/menu', async (req, res) => {
   VALUES ($1, $2, $3, $4, $5, $6)
 `;
 
-
         await runAsync(query, [id, nombre, descripcion || null, categoria, precio, tiempo_preparacion_min || 15]);
 
         res.json({
@@ -310,8 +305,8 @@ app.put('/api/menu/:id', async (req, res) => {
 
         await runAsync(`
             UPDATE menu_items 
-            SET nombre = ?, descripcion = ?, categoria = ?, precio = ?, tiempo_preparacion_min = ?, disponible = ?
-            WHERE id = ?
+            SET nombre = $1, descripcion = $2, categoria = $3, precio = $4, tiempo_preparacion_min = $5, disponible = $6
+            WHERE id = $7
                 `, [nombre, descripcion, categoria, precio, tiempo_preparacion_min, disponible, req.params.id]);
 
         res.json({ message: '✓ Item actualizado' });
@@ -323,7 +318,7 @@ app.put('/api/menu/:id', async (req, res) => {
 // DELETE /api/menu/:id - Eliminar item del menú
 app.delete('/api/menu/:id', async (req, res) => {
     try {
-        await runAsync('DELETE FROM menu_items WHERE id = ?', [req.params.id]);
+        await runAsync('DELETE FROM menu_items WHERE id = $1', [req.params.id]);
         res.json({ message: '✓ Item eliminado' });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -351,7 +346,7 @@ app.post('/api/mesas', async (req, res) => {
             return res.status(400).json({ error: 'Número de mesa requerido' });
         }
 
-        const query = `INSERT INTO mesas(numero, capacidad) VALUES(?, ?)`;
+        const query = `INSERT INTO mesas(numero, capacidad) VALUES($1, $2)`;
         await runAsync(query, [numero, capacidad || 4]);
 
         res.json({
@@ -368,7 +363,7 @@ app.post('/api/mesas', async (req, res) => {
 // DELETE /api/mesas/:id - Eliminar mesa
 app.delete('/api/mesas/:id', async (req, res) => {
     try {
-        await runAsync('DELETE FROM mesas WHERE id = ?', [req.params.id]);
+        await runAsync('DELETE FROM mesas WHERE id = $1', [req.params.id]);
         res.json({ message: '✓ Mesa eliminada' });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -397,7 +392,7 @@ app.post('/api/pedidos', async (req, res) => {
         // Insertar pedido
         const pedidoQuery = `
       INSERT INTO pedidos(id, mesa_numero, usuario_mesero_id, total, notas, estado)
-      VALUES(?, ?, ?, ?, ?, 'nuevo')
+      VALUES($1, $2, $3, $4, $5, 'nuevo')
                 `;
         await runAsync(pedidoQuery, [pedido_id, mesa_numero, usuario_mesero_id, total, notas || null]);
 
@@ -406,7 +401,7 @@ app.post('/api/pedidos', async (req, res) => {
             const item_id = uuidv4();
             const itemQuery = `
         INSERT INTO pedido_items(id, pedido_id, menu_item_id, cantidad, precio_unitario, notas)
-        VALUES(?, ?, ?, ?, ?, ?)
+        VALUES($1, $2, $3, $4, $5, $6)
                 `;
             await runAsync(itemQuery, [
                 item_id,
@@ -462,7 +457,7 @@ app.get('/api/pedidos/activos', async (req, res) => {
         SELECT pi.id, pi.menu_item_id, mi.nombre, pi.cantidad, pi.precio_unitario, pi.estado, pi.notas
         FROM pedido_items pi
         JOIN menu_items mi ON pi.menu_item_id = mi.id
-        WHERE pi.pedido_id = ?
+        WHERE pi.pedido_id = $1
             `;
             pedido.items = await allAsync(itemsQuery, [pedido.id]);
         }
@@ -476,7 +471,7 @@ app.get('/api/pedidos/activos', async (req, res) => {
 // GET /api/pedidos/:id - Obtener pedido específico
 app.get('/api/pedidos/:id', async (req, res) => {
     try {
-        const pedido = await getAsync('SELECT * FROM pedidos WHERE id = ?', [req.params.id]);
+        const pedido = await getAsync('SELECT * FROM pedidos WHERE id = $1', [req.params.id]);
 
         if (!pedido) {
             return res.status(404).json({ error: 'Pedido no encontrado' });
@@ -486,7 +481,7 @@ app.get('/api/pedidos/:id', async (req, res) => {
       SELECT pi.id, pi.menu_item_id, mi.nombre, pi.cantidad, pi.precio_unitario, pi.estado, pi.notas
       FROM pedido_items pi
       JOIN menu_items mi ON pi.menu_item_id = mi.id
-      WHERE pi.pedido_id = ?
+      WHERE pi.pedido_id = $1
             `, [req.params.id]);
 
         res.json({ ...pedido, items });
@@ -506,7 +501,7 @@ app.put('/api/pedidos/:id/estado', async (req, res) => {
         }
 
         // Actualizar timestamp según estado
-        let updateQuery = 'UPDATE pedidos SET estado = ?';
+        let updateQuery = 'UPDATE pedidos SET estado = $1';
         let params = [estado];
 
         if (estado === 'en_cocina') {
@@ -517,7 +512,7 @@ app.put('/api/pedidos/:id/estado', async (req, res) => {
             updateQuery += ', completed_at = CURRENT_TIMESTAMP';
         }
 
-        updateQuery += ' WHERE id = ?';
+        updateQuery += ' WHERE id = $2';
         params.push(req.params.id);
 
         await runAsync(updateQuery, params);
@@ -541,7 +536,7 @@ app.put('/api/pedido-items/:id/estado', async (req, res) => {
             return res.status(400).json({ error: 'Estado inválido' });
         }
 
-        await runAsync('UPDATE pedido_items SET estado = ? WHERE id = ?', [estado, req.params.id]);
+        await runAsync('UPDATE pedido_items SET estado = $1 WHERE id = $2', [estado, req.params.id]);
 
         res.json({ message: '✓ Item actualizado', estado });
     } catch (error) {
@@ -568,13 +563,13 @@ app.post('/api/transacciones', async (req, res) => {
         const transaccion_id = uuidv4();
         const query = `
       INSERT INTO transacciones(id, pedido_id, usuario_facturero_id, monto, metodo_pago, completada)
-      VALUES(?, ?, ?, ?, ?, 1)
+      VALUES($1, $2, $3, $4, $5, 1)
                 `;
 
         await runAsync(query, [transaccion_id, pedido_id, usuario_facturero_id, monto, metodo_pago]);
 
         // Marcar pedido como pagado
-        await runAsync('UPDATE pedidos SET estado = ? WHERE id = ?', ['pagado', pedido_id]);
+        await runAsync('UPDATE pedidos SET estado = $1 WHERE id = $2', ['pagado', pedido_id]);
 
         res.json({
             transaccion_id,
@@ -595,7 +590,7 @@ app.post('/api/imprimir/cuenta', async (req, res) => {
     try {
         const { pedido_id } = req.body;
 
-        const pedido = await getAsync('SELECT * FROM pedidos WHERE id = ?', [pedido_id]);
+        const pedido = await getAsync('SELECT * FROM pedidos WHERE id = $1', [pedido_id]);
         if (!pedido) {
             return res.status(404).json({ error: 'Pedido no encontrado' });
         }
@@ -604,7 +599,7 @@ app.post('/api/imprimir/cuenta', async (req, res) => {
       SELECT pi.*, mi.nombre, mi.precio
       FROM pedido_items pi
       JOIN menu_items mi ON pi.menu_item_id = mi.id
-      WHERE pi.pedido_id = ?
+      WHERE pi.pedido_id = $1
             `, [pedido_id]);
 
         pedido.items = items;
@@ -625,7 +620,7 @@ app.post('/api/imprimir/pago', async (req, res) => {
     try {
         const { pedido_id, metodo_pago, monto } = req.body;
 
-        const pedido = await getAsync('SELECT * FROM pedidos WHERE id = ?', [pedido_id]);
+        const pedido = await getAsync('SELECT * FROM pedidos WHERE id = $1', [pedido_id]);
         if (!pedido) {
             return res.status(404).json({ error: 'Pedido no encontrado' });
         }
@@ -768,23 +763,16 @@ app.get('/api/config', async (req, res) => {
 app.post('/api/config', async (req, res) => {
     try {
         const config = req.body;
-        const stmt = db.prepare("INSERT OR REPLACE INTO configuracion (clave, valor) VALUES (?, ?)");
 
-        db.serialize(() => {
-            db.run("BEGIN TRANSACTION");
-            Object.entries(config).forEach(([key, val]) => {
-                stmt.run(key, String(val));
-            });
-            db.run("COMMIT", (err) => {
-                if (err) {
-                    console.error('Error guardando config:', err);
-                    res.status(500).json({ error: err.message });
-                } else {
-                    res.json({ success: true });
-                }
-            });
-        });
-        stmt.finalize();
+        // Usamos INSERT ... ON CONFLICT para upsert en Postgres
+        for (const [key, val] of Object.entries(config)) {
+            await runAsync(
+              'INSERT INTO configuracion (clave, valor) VALUES ($1, $2) ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor',
+              [key, String(val)]
+            );
+        }
+
+        res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -856,13 +844,10 @@ httpServer.listen(PORT, '0.0.0.0', () => {
     console.log('\n' + '='.repeat(60) + '\n');
 });
 
+
 // Cerrar BD al terminar
-process.on('SIGINT', () => {
-    db.close(() => {
-        console.log('\n✓ Base de datos cerrada');
-        process.exit(0);
-    });
+process.on('SIGINT', async () => {
+    await pool.end();
+    console.log('\n✓ Conexión a Postgres finalizada');
+    process.exit(0);
 });
-
-
-
