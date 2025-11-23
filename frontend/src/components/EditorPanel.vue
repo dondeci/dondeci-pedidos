@@ -170,7 +170,7 @@ const emit = defineEmits(['volver']);
 
 const activeTab = ref('menu');
 const loading = ref(false);
-const urlMenu = ref(`${window.location.origin}/menu`);
+const urlMenu = ref("https://restaurante-pedidos.vercel.app/menu");
 
 // Obtener IP local del servidor para el QR
 const obtenerIP = async () => {
@@ -344,7 +344,7 @@ onMounted(() => {
   cargarMenu();
   cargarMesas();
   cargarConfig();
-  obtenerIP();
+ // obtenerIP();
 });
 </script>
 
