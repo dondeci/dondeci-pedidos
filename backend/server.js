@@ -843,22 +843,21 @@ app.get('/api/test', (req, res) => {
 });
 
 
-// ============= SERVIR FRONTEND =============
-console.log('📁 Sirviendo frontend desde:', frontendPath);
+// console.log('📁 Sirviendo frontend desde:', frontendPath);
 
 // Servir archivos estáticos
-app.use(express.static(frontendPath));
+// app.use(express.static(frontendPath));
 
 // SPA fallback - todas las rutas van a index.html
-app.use((req, res, next) => {
-    // Si no es API, servir index.html
-    if (!req.path.startsWith('/api')) {
-        res.sendFile(path.join(frontendPath, 'index.html'));
-    } else {
-        // Si es API y no se encontró, pasar al 404
-        next();
-    }
-});
+// app.use((req, res, next) => {
+//     // Si no es API, servir index.html
+//     if (!req.path.startsWith('/api')) {
+//         res.sendFile(path.join(frontendPath, 'index.html'));
+//     } else {
+//         // Si es API y no se encontró, pasar al 404
+//         next();
+//     }
+// });
 
 // ============= MANEJO DE ERRORES =============
 
