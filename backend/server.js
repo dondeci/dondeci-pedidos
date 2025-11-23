@@ -259,7 +259,7 @@ app.delete('/api/users/:id', async (req, res) => {
 // GET /api/menu - Obtener menú disponible
 app.get('/api/menu', async (req, res) => {
     try {
-        const menu = await allAsync('SELECT * FROM menu_items WHERE disponible = 1 ORDER BY categoria, nombre');
+        const menu = await allAsync('SELECT * FROM menu_items WHERE disponible = TRUE ORDER BY categoria, nombre');
         res.json(menu);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -563,7 +563,7 @@ app.post('/api/transacciones', async (req, res) => {
         const transaccion_id = uuidv4();
         const query = `
       INSERT INTO transacciones(id, pedido_id, usuario_facturero_id, monto, metodo_pago, completada)
-      VALUES($1, $2, $3, $4, $5, 1)
+      VALUES($1, $2, $3, $4, $5, TRUE)
                 `;
 
         await runAsync(query, [transaccion_id, pedido_id, usuario_facturero_id, monto, metodo_pago]);
@@ -713,7 +713,7 @@ app.get('/api/reportes/historico', async (req, res) => {
             COUNT(*) as cantidad_transacciones,
             SUM(t.monto) as total_dia
             FROM transacciones t
-            WHERE t.completada = 1
+            WHERE t.completada = TRUE
             GROUP BY DATE(t.created_at)
             ORDER BY fecha DESC
             LIMIT 30
@@ -727,7 +727,7 @@ app.get('/api/reportes/historico', async (req, res) => {
                 COUNT(*) as total_transacciones,
             SUM(monto) as total_acumulado
             FROM transacciones
-            WHERE completada = 1
+            WHERE completada = TRUE
             `;
 
         const totalAcumulado = await getAsync(totalAcumuladoQuery);
