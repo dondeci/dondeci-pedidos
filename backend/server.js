@@ -49,7 +49,22 @@ app.get('/api/ip', (req, res) => {
     }
     res.json({ ip: ipAddress });
 });
+// ============= FUNCIONES AUXILIARES =============
 
+// Helper: Ejecutar query y devolver promesa
+const runAsync = async (query, params = []) => {
+  await pool.query(query, params);
+};
+
+const getAsync = async (query, params = []) => {
+  const res = await pool.query(query, params);
+  return res.rows[0];
+};
+
+const allAsync = async (query, params = []) => {
+  const res = await pool.query(query, params);
+  return res.rows;
+};
 // ============= BASE DE DATOS =============
 
 const initializeTablesPostgres = async () => {
@@ -165,22 +180,7 @@ const initializeTablesPostgres = async () => {
 // Inicializa al arrancar
 initializeTablesPostgres();
 
-// ============= FUNCIONES AUXILIARES =============
 
-// Helper: Ejecutar query y devolver promesa
-const runAsync = async (query, params = []) => {
-  await pool.query(query, params);
-};
-
-const getAsync = async (query, params = []) => {
-  const res = await pool.query(query, params);
-  return res.rows[0];
-};
-
-const allAsync = async (query, params = []) => {
-  const res = await pool.query(query, params);
-  return res.rows;
-};
 
 
 
