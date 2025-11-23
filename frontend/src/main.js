@@ -1,12 +1,13 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
-
+import router from './router' // Importa el router
 import './style.css'
 
 const app = createApp(App)
 
 app.use(createPinia())
+app.use(router)  // Usa el router
 app.mount('#app')
 
 // ============= REGISTRAR SERVICE WORKER =============
