@@ -162,17 +162,13 @@
               </div>
             </div>
           </div>
-        </div>
+        </div><div>
+    <GeneradorQR v-if="mostrarQR" ref="qrComponent" :valor="urlParaQR" />
+    
+  </div>
       </template>
     </div>
-  </div><template>
-  <div>
-    <GeneradorQR v-if="mostrarQR" ref="qrComponent" :valor="urlParaQR" />
-    <button @click="descargarQR" :disabled="!qrComponent || !qrComponent.qrSrc">
-      Descargar QR
-    </button>
   </div>
-</template>
 </template>
 
 <script setup>
