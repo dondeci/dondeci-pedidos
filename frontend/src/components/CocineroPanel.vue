@@ -66,7 +66,7 @@
                   <input
                     type="checkbox"
                     :checked="item.estado === 'listo'"
-                    @change="() => marcarItemListo(item.id, item.estado)"
+                    @change="marcarItemListo(item.id, item.estado)"
                     class="item-checkbox"
                   />
                   <span class="qty">{{ item.cantidad }}x</span>
