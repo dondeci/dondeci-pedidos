@@ -62,17 +62,18 @@
   :key="item.id"
   class="item-line"
   :class="{ 'item-done': item.estado === 'listo' }"
+  style="width: 100%;"
 >
-  <label class="item-touch-label">
+  <label class="item-touch-label" style="width:100%;display:flex;align-items:center;cursor:pointer;">
     <input
       type="checkbox"
       :checked="item.estado === 'listo'"
       @change="marcarItemListo(item.id, item.estado)"
       class="item-checkbox"
-      style="margin-right:8px;"
+      style="margin-right:12px;"
     />
-    <span class="qty">{{ item.cantidad }}x</span>
-    <span class="name">{{ item.nombre }}</span>
+    <span class="qty" style="margin-right:12px;">{{ item.cantidad }}x</span>
+    <span class="name" style="flex:1;">{{ item.nombre }}</span>
   </label>
 </div>
               </div>
