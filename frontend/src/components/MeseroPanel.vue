@@ -6,7 +6,12 @@
         <button @click="cargarDatos" class="btn btn-secondary" :disabled="loading">
           🔄 Actualizar
         </button>
-      </div>
+      </div> <div>
+    <GeneradorQR v-if="mostrarQR" ref="qrComponent" :valor="urlParaQR" />
+    <button @click="descargarQR" :disabled="!qrComponent || !qrComponent.qrSrc">
+      Descargar QR
+    </button>
+  </div>
     </div>
 
     <div class="panel-content">
