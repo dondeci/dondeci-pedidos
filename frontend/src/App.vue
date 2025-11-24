@@ -181,7 +181,10 @@ const obtenerNombreRol = (rol) => {
   width: 100%;
   padding: 20px;
 }
-
+body, #app, .main-content, .cocinero-panel, .card, .panel-content, .section, .pedido-card, .items-list, .item-line, input, button, label, span {
+  user-select: auto !important;
+  pointer-events: auto !important;
+}
 /* Responsivo */
 @media (max-width: 768px) {
   .navbar-content {
