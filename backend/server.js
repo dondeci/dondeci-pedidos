@@ -692,7 +692,7 @@ app.get('/api/reportes/pedidos-hoy', async (req, res) => {
       LEFT JOIN pedido_items pi ON p.id = pi.pedido_id
       LEFT JOIN transacciones t ON p.id = t.pedido_id
       WHERE DATE(p.created_at) = DATE('now')
-      GROUP BY p.id
+      GROUP BY p.id, p.mesa_numero, u.nombre, p.total, p.estado, p.created_at, t.usuario_facturero_id, t.metodo_pago
       ORDER BY p.created_at DESC
             `;
 
