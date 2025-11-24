@@ -20,10 +20,7 @@
                 <button @click="cerrarNotificacion(notif.id)" class="btn-cerrar-notif">✕</button>
             </div>
             </div>
-<GeneradorQR :valor="urlParaQR" ref="qrComponent" />
-
-<button @click="descargarQRDesdeComponente" :disabled="!qrComponent.qrSrc">Descargar QR</button>
-        <!-- Selector de Mesa -->
+ <!-- Selector de Mesa -->
         <div class="section">
           <h3>1️⃣ Selecciona la Mesa</h3>
           <div class="mesas-grid">
@@ -176,7 +173,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { usePedidoStore } from '../stores/pedidoStore';
 import { useUsuarioStore } from '../stores/usuarioStore';
 import { useNotificaciones } from '../composables/useNotificaciones';
-
+import GeneradorQR from '@/components/GeneradorQR.vue';
 const { notificaciones, cerrarNotificacion } = useNotificaciones('mesero');
 
 const pedidoStore = usePedidoStore();
@@ -188,10 +185,9 @@ const pedidoEnProgreso = ref([]);
 const notasPedido = ref('');
 const loading = ref(false);
 const qrComponent = ref(null);
-
-const urlParaQR = ref('https://restaurante-pedidos.vercel.app/mesero');
-
-const descargarQRDesdeComponente = () => {
+const mostrarQR = ref(true);
+const urlParaQR = ref('https://restaurante-pedidos.vercel.app/menu');
+const descargarQR = () => {
   if (qrComponent.value && qrComponent.value.qrSrc) {
     const link = document.createElement('a');
     link.href = qrComponent.value.qrSrc;
