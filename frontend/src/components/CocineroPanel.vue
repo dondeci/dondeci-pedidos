@@ -58,19 +58,23 @@
               </div>
               <div class="items-list">
                 <div
-                  v-for="item in pedido.items"
-                  :key="item.id"
-                  class="item-line"
-                  :class="{ 'item-done': item.estado === 'listo' }"
-                >
-                  <label class="item-checkbox-label">
-  <input
-    type="checkbox"
-    :checked="item.estado === 'listo'"
-    @change="marcarItemListo(item.id, item.estado)"
-    class="item-checkbox"
-  />
-</label>
+  v-for="item in pedido.items"
+  :key="item.id"
+  class="item-line"
+  :class="{ 'item-done': item.estado === 'listo' }"
+>
+  <label class="item-touch-label" style="width:100%; display:flex; align-items:center; cursor:pointer;">
+    <input
+      type="checkbox"
+      :checked="item.estado === 'listo'"
+      @change="marcarItemListo(item.id, item.estado)"
+      class="item-checkbox"
+      style="margin-right:8px;"
+    />
+    <span class="qty">{{ item.cantidad }}x</span>
+    <span class="name">{{ item.nombre }}</span>
+  </label>
+</div>
                   <span class="qty">{{ item.cantidad }}x</span>
                   <span class="name">{{ item.nombre }}</span>
                 </div>
