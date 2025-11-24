@@ -10,7 +10,12 @@ import path from 'path';
 import pkg from 'pg';
 const { Pool } = pkg;
 
+import pgTypes from 'pg-types';
 
+const { types } = pkg;
+
+// OID para NUMERIC en PostgreSQL es 1700
+types.setTypeParser(1700, val => parseFloat(val));
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const frontendPath = path.join(__dirname, '../frontend/dist');
