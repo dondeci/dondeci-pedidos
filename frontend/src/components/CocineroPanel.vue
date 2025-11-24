@@ -320,12 +320,23 @@ onUnmounted(() => {
   margin: 4px 0;
 }
 
-.item-checkbox {
-  width: 32px;      /* Mínimo recomendando para touch */
-  height: 32px;
+.item-touch-label {
+  width: 100%;
+  min-height: 44px;         /* Para buen touch */
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
   cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
+}
+.item-checkbox {
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+.name {
+  flex: 1;
+  font-weight: 600;
+  /* Puedes poner color distinto si quieres mostrar si está listo */
 }
 .item-checkbox-label {
   display: flex;
