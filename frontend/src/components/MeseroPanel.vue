@@ -56,12 +56,27 @@
             <div
               v-for="item in itemsPorCategoria"
               :key="item.id"
-              class="item-card"
+              :class="['item-card', { 
+                'item-disabled': item.estado_inventario === 'no_disponible',
+                'item-low-stock': item.estado_inventario === 'poco_stock'
+              }]"
               @click="agregarItemAlPedido(item)"
             >
               <div class="item-nombre">{{ item.nombre }}</div>
               <div class="item-precio">${{ item.precio }}</div>
               <div class="item-tiempo">⏱️ {{ item.tiempo_preparacion_min }}min</div>
+              
+              <!-- Inventory Status -->
+              <div v-if="item.usa_inventario && item.stock_actual !== null" class="item-stock">
+                📦 Quedan: {{ item.stock_actual }} unidades
+              </div>
+              
+              <div v-if="item.estado_inventario === 'no_disponible'" class="item-agotado">
+                ❌ AGOTADO
+              </div>
+              <div v-else-if="item.estado_inventario === 'poco_stock'" class="item-warning">
+                ⚠️ POCO STOCK
+              </div>
             </div>
           </div>
         </div>
@@ -102,21 +117,21 @@
           </button>
         </div>
 
-        <!-- Pedidos Listos para Servir -->
-        <div class="section" v-if="misPedidosListos.length > 0">
-          <h3>🔔 Pedidos Listos para Servir</h3>
-          <div class="pedidos-listos-list">
-            <div v-for="pedido in misPedidosListos" :key="pedido.id" class="pedido-listo-item">
-              <div class="pedido-listo-header">
-                <span class="mesa-badge-listo">Mesa {{ pedido.mesa_numero }}</span>
-                <span class="tiempo-badge">{{ calcularTiempoEspera(pedido.created_at) }}</span>
+        <!-- Items Listos para Servir (Individual) -->
+        <div class="section" v-if="misItemsListos.length > 0">
+          <h3>🍽️ Items Listos para Servir <span class="badge-count">{{ misItemsListos.length }}</span></h3>
+          <div class="items-listos-list">
+            <div v-for="itemListo in misItemsListos" :key="itemListo.item_id" class="item-listo-card">
+              <div class="item-listo-header">
+                <span class="mesa-badge-listo">Mesa {{ itemListo.mesa_numero }}</span>
+                <span class="tiempo-listo">Listo hace {{ calcularTiempoDesde(itemListo.completed_at) }}</span>
               </div>
-              <div class="pedido-listo-detalles">
-                <div class="info">
-                  <span>{{ pedido.items_count }} items</span>
-                  <span class="total">${{ pedido.total }}</span>
+              <div class="item-listo-body">
+                <div class="item-info">
+                  <span class="item-nombre">{{ itemListo.nombre }}</span>
+                  <span class="item-cantidad">x{{ itemListo.cantidad_lista }}</span>
                 </div>
-                <button @click="marcarComoServido(pedido.id)" class="btn btn-servir">
+                <button @click="marcarItemComoServido(itemListo.item_id)" class="btn btn-servir-item">
                   ✅ Marcar como Servido
                 </button>
               </div>
@@ -182,11 +197,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { usePedidoStore } from '../stores/pedidoStore';
 import { useUsuarioStore } from '../stores/usuarioStore';
 import { useNotificaciones } from '../composables/useNotificaciones';
 import GeneradorQR from './GeneradorQR.vue';
+import api from '../api';
+import socket from '../socket';
+
 const { notificaciones, cerrarNotificacion } = useNotificaciones('mesero');
 
 const pedidoStore = usePedidoStore();
@@ -200,6 +218,7 @@ const loading = ref(false);
 const qrComponent = ref(null);
 const mostrarQR = ref(false);
 const urlParaQR = ref('');
+const now = ref(Date.now()); // Reactive time for "Listo hace..."
 
 const mostrarQRCliente = (pedidoId) => {
   const baseUrl = window.location.origin;
@@ -249,6 +268,43 @@ const misPedidosListos = computed(() => {
   );
 });
 
+// Nuevo: Items individuales listos para servir
+const misItemsListos = computed(() => {
+  if (!usuarioStore.usuario?.id) return [];
+  
+  const itemsListos = [];
+  
+  // Recorrer todos los pedidos en cocina o listos
+  pedidoStore.pedidos.forEach(pedido => {
+    if (String(pedido.usuario_mesero_id) !== String(usuarioStore.usuario.id)) return;
+    if (pedido.estado !== 'en_cocina' && pedido.estado !== 'listo') return;
+    
+    // Agrupar items por nombre y estado 'listo'
+    const itemsAgrupados = {};
+    
+    pedido.items.forEach(item => {
+      if (item.estado === 'listo') {
+        const key = `${pedido.id}-${item.menu_item_id}`;
+        if (!itemsAgrupados[key]) {
+          itemsAgrupados[key] = {
+            item_id: item.id,
+            pedido_id: pedido.id,
+            mesa_numero: pedido.mesa_numero,
+            nombre: item.nombre,
+            cantidad_lista: 0,
+            completed_at: item.completed_at
+          };
+        }
+        itemsAgrupados[key].cantidad_lista += item.cantidad;
+      }
+    });
+    
+    Object.values(itemsAgrupados).forEach(item => itemsListos.push(item));
+  });
+  
+  return itemsListos.sort((a, b) => new Date(a.completed_at) - new Date(b.completed_at));
+});
+
 const misPedidosServidos = computed(() => {
   if (!usuarioStore.usuario?.id) return [];
   return pedidoStore.pedidos.filter(
@@ -260,14 +316,10 @@ const cargarDatos = async () => {
   loading.value = true;
   try {
     console.log('🔄 Cargando datos MeseroPanel...');
-    console.log('👤 Usuario actual:', usuarioStore.usuario);
     
     await pedidoStore.cargarMenu();
     await pedidoStore.cargarMesas();
     await pedidoStore.cargarPedidosActivos();
-    
-    console.log('📦 Pedidos cargados:', pedidoStore.pedidos);
-    console.log('🔍 Filtrando por ID:', usuarioStore.usuario?.id);
     
     if (categorias.value.length > 0) {
       categoriaSeleccionada.value = categorias.value;
@@ -280,8 +332,22 @@ const cargarDatos = async () => {
 };
 
 const agregarItemAlPedido = (item) => {
+  // No permitir agregar items agotados
+  if (item.estado_inventario === 'no_disponible') {
+    alert('❌ Este item no está disponible en este momento');
+    return;
+  }
+  
   const existe = pedidoEnProgreso.value.find(i => i.id === item.id);
+  
   if (existe) {
+    // Si usa inventario, verificar que no exceda el stock
+    if (item.usa_inventario && item.stock_actual !== null) {
+      if (existe.cantidad >= item.stock_actual) {
+        alert(`⚠️ Solo quedan ${item.stock_actual} unidades disponibles`);
+        return;
+      }
+    }
     existe.cantidad++;
   } else {
     pedidoEnProgreso.value.push({
@@ -334,8 +400,35 @@ const marcarComoServido = async (pedidoId) => {
     await pedidoStore.actualizarEstadoPedido(pedidoId, 'servido');
     alert('✅ Pedido marcado como servido');
   } catch (err) {
-    alert('❌ Error al marcar pedido como servido');
+    alert('❌ Error al marcar como servido');
   }
+};
+
+// Marcar item individual como servido
+const marcarItemComoServido = async (itemId) => {
+  try {
+    await api.servirItem(itemId);
+    await cargarDatos(); // Recargar para actualizar la lista
+  } catch (err) {
+    console.error('Error marcando item como servido:', err);
+    alert('❌ Error al marcar item como servido');
+  }
+};
+
+// Calcular tiempo desde que se completó
+const calcularTiempoDesde = (timestamp) => {
+  if (!timestamp) return '0min';
+  const completedTime = new Date(timestamp);
+  // Usar Date.now() directamente
+  const diffMinutes = Math.floor((Date.now() - completedTime) / 60000);
+  
+  if (diffMinutes < 1) return 'Ahora';
+  if (diffMinutes === 1) return '1 minuto';
+  if (diffMinutes < 60) return `${diffMinutes} minutos`;
+  
+  const hours = Math.floor(diffMinutes / 60);
+  const mins = diffMinutes % 60;
+  return `${hours}h ${mins}min`;
 };
 
 const marcarListoPagar = async (pedidoId) => {
@@ -348,9 +441,8 @@ const marcarListoPagar = async (pedidoId) => {
 };
 
 const calcularTiempoEspera = (createdAt) => {
-  const ahora = new Date();
   const creado = new Date(createdAt);
-  const diffMs = ahora - creado;
+  const diffMs = now.value - creado;
   const diffMins = Math.floor(diffMs / 60000);
   
   if (diffMins < 1) return 'Recién listo';
@@ -397,9 +489,55 @@ const cargarEstadoLocal = () => {
   }
 };
 
+let timerInterval = null;
+
 onMounted(() => {
   cargarDatos();
   cargarEstadoLocal();
+  
+  if (!socket.connected) socket.connect();
+
+  // Listeners para actualizaciones en tiempo real
+  socket.on('item_ready', (data) => {
+      // Si el item es para este mesero, solo recargar pedidos (no menú ni mesas)
+      if (String(data.mesero_id) === String(usuarioStore.usuario?.id)) {
+          console.log('🔔 Item listo para mi mesa:', data.mesa_numero);
+          pedidoStore.cargarPedidosActivos(); // Solo recargar pedidos, no todo
+      }
+  });
+
+  socket.on('pedido_actualizado', ({ id, estado }) => {
+      // Solo recargar si el pedido es de este mesero
+      const esMiPedido = pedidoStore.pedidos.some(p => 
+          p.id === id && String(p.usuario_mesero_id) === String(usuarioStore.usuario?.id)
+      );
+      
+      if (esMiPedido) {
+          console.log('📝 Mi pedido actualizado:', id, estado);
+          pedidoStore.cargarPedidosActivos(); // Solo recargar pedidos
+      }
+  });
+
+  socket.on('nuevo_pedido', (pedido) => {
+      // Si es un pedido de este mesero, recargar
+      if (String(pedido.usuario_mesero_id) === String(usuarioStore.usuario?.id)) {
+          console.log('🆕 Mi nuevo pedido creado');
+          pedidoStore.cargarPedidosActivos();
+      }
+  });
+
+  // Actualizar 'now' y recargar pedidos cada minuto
+  timerInterval = setInterval(() => {
+    pedidoStore.cargarPedidosActivos(); // Recargar para actualizar timers
+  }, 60000); // Cada minuto
+});
+
+onUnmounted(() => {
+    socket.off('item_ready');
+    socket.off('item_completed');
+    socket.off('pedido_actualizado');
+    socket.off('nuevo_pedido');
+    if (timerInterval) clearInterval(timerInterval);
 });
 </script>
 
@@ -524,6 +662,55 @@ onMounted(() => {
 .item-tiempo {
   font-size: 12px;
   color: #666;
+}
+
+/* Inventory Status Styles */
+.item-stock {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.item-agotado {
+  margin-top: 8px;
+  padding: 4px 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.item-warning {
+  margin-top: 8px;
+  padding: 4px 8px;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.item-disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.item-disabled:hover {
+  border-color: #d1d5db !important;
+  background: #f3f4f6 !important;
+}
+
+.item-low-stock {
+  border-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.05);
+}
+
+.item-low-stock:hover {
+  border-color: #f59e0b;
+  background: rgba(251, 191, 36, 0.1);
 }
 
 .pedido-summary {
@@ -751,6 +938,122 @@ onMounted(() => {
 }
 
 /* Pedidos Listos para Servir */
+.pedidos-listos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Items Listos para Servir (Individual) */
+.items-listos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.item-listo-card {
+  padding: 16px;
+  border: 2px solid #10b981;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  animation: pulse-border 2s ease-in-out infinite;
+  transition: all 0.2s;
+}
+
+.item-listo-card:hover {
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.item-listo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.mesa-badge-listo {
+  background: #10b981;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.tiempo-listo {
+  font-size: 12px;
+  color: #059669;
+  font-weight: 600;
+}
+
+.item-listo-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.item-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.item-nombre {
+  font-weight: 700;
+  font-size: 16px;
+  color: #065f46;
+}
+
+.item-cantidad {
+  background: #10b981;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.btn-servir-item {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-servir-item:hover {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.badge-count {
+  background: #ef4444;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 14px;
+  margin-left: 8px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
 .pedidos-listos-list {
   display: flex;
   flex-direction: column;

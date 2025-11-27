@@ -4,7 +4,8 @@ import socket from '../socket';
 
 export function useNotificaciones(rol) {
     const notificaciones = ref([]);
-    const ultimaVerificacion = ref(Date.now());
+    // The `ultimaVerificacion` ref was removed in the provided diff, but not explicitly.
+    // Assuming it's intended to be removed as it's not used in the new logic.
     let intervalo = null;
 
     // Cargar notificaciones cerradas del localStorage
@@ -18,7 +19,7 @@ export function useNotificaciones(rol) {
         const cerradas = getNotificacionesCerradas();
         if (!cerradas.includes(id)) {
             cerradas.push(id);
-            // Limitar historial para no llenar localStorage indefinidamente (opcional, ej: ultimos 100)
+            // Limitar historial para no llenar localStorage indefinidamente
             if (cerradas.length > 200) cerradas.shift();
             localStorage.setItem(`notificaciones_cerradas_${rol}`, JSON.stringify(cerradas));
         }
@@ -27,7 +28,6 @@ export function useNotificaciones(rol) {
     // Reproducir sonido
     const reproducirSonido = () => {
         try {
-            // Crear sonido simple beep
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
@@ -50,11 +50,9 @@ export function useNotificaciones(rol) {
 
     // Mostrar notificación
     const mostrarNotificacion = (id, titulo, tipo = 'info') => {
-        // 1. Verificar si ya fue cerrada anteriormente (persistencia)
         const cerradas = getNotificacionesCerradas();
         if (cerradas.includes(id)) return;
 
-        // 2. Verificar si ya está visible actualmente
         const existe = notificaciones.value.some(n => n.id === id);
         if (existe) return;
 
@@ -68,15 +66,16 @@ export function useNotificaciones(rol) {
         notificaciones.value.push(notif);
         console.log(`🔔 ${tipo.toUpperCase()}: ${titulo}`);
 
-        // Reproducir sonido solo cuando aparece por primera vez
         reproducirSonido();
 
-        // Vibrar (si es móvil)
-        if (navigator.vibrate) {
-            navigator.vibrate([100, 50, 100]);
+        try {
+            if (navigator.vibrate) {
+                navigator.vibrate([100, 50, 100]);
+            }
+        } catch (err) {
+            // Ignorar error de vibración
         }
 
-        // Notificación del sistema
         if ('Notification' in window && Notification.permission === 'granted') {
             new Notification('🍽️ Restaurante POS', {
                 body: titulo,
@@ -84,30 +83,25 @@ export function useNotificaciones(rol) {
                 badge: '/favicon.ico'
             });
         }
-
-        // YA NO desaparece automáticamente
     };
 
     // Cerrar notificación manualmente
     const cerrarNotificacion = (notifId) => {
-        // Remover de la lista visible
         notificaciones.value = notificaciones.value.filter(n => n.id !== notifId);
-        // Marcar como cerrada permanentemente
         marcarComoCerrada(notifId);
     };
 
-    // Verificar nuevas notificaciones cada 3 segundos
+    // Verificar nuevas notificaciones (fallback si socket falla)
     const verificarNotificaciones = async () => {
         try {
             if (rol === 'cocinero') {
-                // Cocinero: Verificar si hay pedidos NUEVOS
                 const pedidosResponse = await api.getPedidosActivos();
                 const pedidosNuevos = pedidosResponse.data.filter(p => p.estado === 'nuevo');
 
                 if (pedidosNuevos.length > 0) {
                     pedidosNuevos.forEach(pedido => {
                         mostrarNotificacion(
-                            `pedido-${pedido.id}-nuevo`, // ID determinista
+                            `pedido-${pedido.id}-nuevo`,
                             `🆕 Mesa ${pedido.mesa_numero}: Nuevo pedido (${pedido.items_count} items)`,
                             'nuevo'
                         );
@@ -115,14 +109,13 @@ export function useNotificaciones(rol) {
                 }
             }
             else if (rol === 'mesero') {
-                // Mesero: Verificar si hay pedidos LISTOS
                 const pedidosResponse = await api.getPedidosActivos();
                 const pedidosListos = pedidosResponse.data.filter(p => p.estado === 'listo');
 
                 if (pedidosListos.length > 0) {
                     pedidosListos.forEach(pedido => {
                         mostrarNotificacion(
-                            `pedido-${pedido.id}-listo`, // ID determinista
+                            `pedido-${pedido.id}-listo`,
                             `✅ Mesa ${pedido.mesa_numero}: ¡Pedido LISTO! 🎉`,
                             'listo'
                         );
@@ -130,14 +123,13 @@ export function useNotificaciones(rol) {
                 }
             }
             else if (rol === 'facturero') {
-                // Facturero: Verificar si hay pedidos LISTOS PARA PAGAR
                 const pedidosResponse = await api.getPedidosActivos();
                 const pedidosListosPagar = pedidosResponse.data.filter(p => p.estado === 'listo_pagar');
 
                 if (pedidosListosPagar.length > 0) {
                     pedidosListosPagar.forEach(pedido => {
                         mostrarNotificacion(
-                            `pedido-${pedido.id}-pago`, // ID determinista
+                            `pedido-${pedido.id}-pago`,
                             `💰 Mesa ${pedido.mesa_numero}: Listo para pagar ($${pedido.total})`,
                             'pago'
                         );
@@ -149,16 +141,13 @@ export function useNotificaciones(rol) {
         }
     };
 
-    // Iniciar verificaciones
     onMounted(() => {
-        // Pedir permisos de notificación del sistema
         if ('Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission();
         }
 
         if (!socket.connected) socket.connect();
 
-        // Listeners según rol
         if (rol === 'cocinero') {
             socket.on('nuevo_pedido', (pedido) => {
                 mostrarNotificacion(
@@ -169,11 +158,19 @@ export function useNotificaciones(rol) {
             });
         }
         else if (rol === 'mesero') {
+            socket.on('item_ready', (data) => {
+                const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+                if (usuario.id && String(data.mesero_id) === String(usuario.id)) {
+                    mostrarNotificacion(
+                        `item_listo_${data.item_id}`,
+                        `✅ ${data.item_nombre} listo (Mesa ${data.mesa_numero})`,
+                        'success'
+                    );
+                }
+            });
+
             socket.on('pedido_actualizado', ({ id, estado }) => {
                 if (estado === 'listo') {
-                    // Necesitamos saber la mesa, pero el evento solo trae ID y estado.
-                    // Podríamos hacer un fetch rápido o confiar en que el store ya se actualizó
-                    // Por simplicidad, mostramos mensaje genérico o hacemos fetch
                     api.getPedido(id).then(res => {
                         const p = res.data;
                         mostrarNotificacion(
@@ -200,12 +197,17 @@ export function useNotificaciones(rol) {
             });
         }
 
+        // Intervalo de respaldo cada 30s
+        intervalo = setInterval(verificarNotificaciones, 30000);
+
         console.log(`✅ Notificaciones activadas para: ${rol}`);
     });
 
     onUnmounted(() => {
         socket.off('nuevo_pedido');
         socket.off('pedido_actualizado');
+        socket.off('item_completed'); // New listener to turn off
+        if (intervalo) clearInterval(intervalo);
     });
 
     return {

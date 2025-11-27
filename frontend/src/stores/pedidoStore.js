@@ -67,7 +67,7 @@ export const usePedidoStore = defineStore('pedido', () => {
     const actualizarEstadoPedido = async (id, estado) => {
         try {
             await api.actualizarEstadoPedido(id, estado);
-            // await cargarPedidosActivos(); // Socket se encarga
+            await cargarPedidosActivos();
         } catch (err) {
             error.value = 'Error actualizando pedido';
             throw err;
@@ -77,7 +77,7 @@ export const usePedidoStore = defineStore('pedido', () => {
     const actualizarEstadoItem = async (id, estado) => {
         try {
             await api.actualizarEstadoItem(id, estado);
-            // await cargarPedidosActivos(); // Socket se encarga
+            await cargarPedidosActivos();
         } catch (err) {
             error.value = 'Error actualizando item';
             throw err;

@@ -42,10 +42,31 @@
             <div class="form-grid">
               <input v-model="newItem.nombre" placeholder="Nombre del plato" required />
               <input v-model="newItem.categoria" placeholder="Categoría (ej: Entradas)" required />
-              <input v-model.number="newItem.precio" type="number" placeholder="Precio" required />
-              <input v-model.number="newItem.stock" type="number" placeholder="Cantidad Disponible" />
+              <input v-model.number="newItem.precio" type="number" step="0.01" placeholder="Precio" required />
+              <input v-model.number="newItem.tiempo_preparacion_min" type="number" placeholder="Tiempo (min)" />
             </div>
             <textarea v-model="newItem.descripcion" placeholder="Descripción (ingredientes, notas...)"></textarea>
+            
+            <div class="inventory-controls">
+              <label class="checkbox-label">
+                <input type="checkbox" v-model="newItem.usa_inventario" />
+                📦 Usar control de inventario
+              </label>
+              
+              <div v-if="newItem.usa_inventario" class="inventory-fields">
+                <div class="form-row">
+                  <div class="form-field">
+                    <label>Stock Actual:</label>
+                    <input v-model.number="newItem.stock_actual" type="number" min="0" placeholder="0" />
+                  </div>
+                  <div class="form-field">
+                    <label>Stock Mínimo:</label>
+                    <input v-model.number="newItem.stock_minimo" type="number" min="0" placeholder="5" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            
             <button type="submit" class="btn-add" :disabled="loading">Agregar Item</button>
           </form>
         </div>
@@ -57,23 +78,47 @@
             <div v-for="item in items" :key="item.id" class="item-card">
               <div class="item-header">
                 <input v-model="item.nombre" class="edit-input name" @change="actualizarItem(item)" />
+                <span v-if="item.estado_inventario" :class="['inventory-badge', `badge-${item.estado_inventario}`]">
+                  {{ getBadgeText(item.estado_inventario) }}
+                </span>
                 <button @click="eliminarItem(item.id)" class="btn-delete" title="Eliminar">🗑️</button>
               </div>
               <div class="item-body">
                 <textarea v-model="item.descripcion" class="edit-input desc" @change="actualizarItem(item)" placeholder="Descripción..."></textarea>
                 <div class="item-meta">
                   <label>Precio: $
-                    <input v-model.number="item.precio" type="number" class="edit-input price" @change="actualizarItem(item)" />
+                    <input v-model.number="item.precio" type="number" step="0.01" class="edit-input price" @change="actualizarItem(item)" />
                   </label>
-                  <label>Stock:
-                    <input v-model.number="item.stock" type="number" class="edit-input price" @change="actualizarItem(item)" />
+                  <label>Tiempo:
+                    <input v-model.number="item.tiempo_preparacion_min" type="number" class="edit-input price" @change="actualizarItem(item)" /> min
                   </label>
                 </div>
-                <div class="item-status">
-                  <label>
-                    <input type="checkbox" v-model="item.disponible" @change="actualizarItem(item)" />
-                    Disponible
+                
+                <div class="inventory-section">
+                  <label class="checkbox-label">
+                    <input type="checkbox" v-model="item.usa_inventario" @change="actualizarItem(item)" />
+                    📦 Control de inventario
                   </label>
+                  
+                  <div v-if="item.usa_inventario" class="inventory-controls-edit">
+                    <div class="stock-row">
+                      <label>Stock:
+                        <input v-model.number="item.stock_actual" type="number" min="0" class="edit-input stock" @change="actualizarItem(item)" />
+                      </label>
+                      <label>Mínimo:
+                        <input v-model.number="item.stock_minimo" type="number" min="0" class="edit-input stock" @change="actualizarItem(item)" />
+                      </label>
+                    </div>
+                    
+                    <div class="estado-row">
+                      <label>Estado:</label>
+                      <select v-model="item.estado_inventario" class="edit-input" @change="actualizarItem(item)">
+                        <option value="disponible">✅ Disponible</option>
+                        <option value="poco_stock">⚠️ Poco Stock</option>
+                        <option value="no_disponible">❌ No Disponible</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -176,7 +221,17 @@ const urlMenu = ref("https://restaurante-pedidos.vercel.app/menu");
 
 // Estado Menú
 const menuItems = ref([]);
-const newItem = ref({ nombre: '', categoria: '', precio: '', descripcion: '', tiempo: 15, stock: 10 });
+const newItem = ref({ 
+  nombre: '', 
+  categoria: '', 
+  precio: '', 
+  descripcion: '', 
+  tiempo_preparacion_min: 15,
+  usa_inventario: false,
+  stock_actual: null,
+  stock_minimo: 5,
+  estado_inventario: 'disponible'
+});
 
 // Estado Configuración
 const config = ref({
@@ -202,6 +257,15 @@ const menuPorCategoria = computed(() => {
 });
 
 // --- MÉTODOS MENÚ ---
+const getBadgeText = (estado) => {
+  const badges = {
+    'disponible': '✅ Disponible',
+    'poco_stock': '⚠️ Poco Stock',
+    'no_disponible': '❌ Agotado'
+  };
+  return badges[estado] || estado;
+};
+
 const cargarMenu = async () => {
   try {
     const res = await api.getMenu();
@@ -214,15 +278,33 @@ const cargarMenu = async () => {
 const crearItem = async () => {
   loading.value = true;
   try {
-    await api.agregarMenuItem(
-      newItem.value.nombre,
-      newItem.value.descripcion,
-      newItem.value.categoria,
-      newItem.value.precio,
-      newItem.value.tiempo,
-      newItem.value.stock
-    );
-    newItem.value = { nombre: '', categoria: '', precio: '', descripcion: '', tiempo: 15, stock: 10 };
+    const itemData = {
+      nombre: newItem.value.nombre,
+      descripcion: newItem.value.descripcion,
+      categoria: newItem.value.categoria,
+      precio: newItem.value.precio,
+      tiempo_preparacion_min: newItem.value.tiempo_preparacion_min,
+      disponible: true,
+      usa_inventario: newItem.value.usa_inventario,
+      stock_actual: newItem.value.usa_inventario ? newItem.value.stock_actual : null,
+      stock_minimo: newItem.value.usa_inventario ? newItem.value.stock_minimo : 5,
+      estado_inventario: newItem.value.usa_inventario ? 'disponible' : 'disponible'
+    };
+    
+    await api.agregarMenuItem(itemData);
+    
+    newItem.value = { 
+      nombre: '', 
+      categoria: '', 
+      precio: '', 
+      descripcion: '', 
+      tiempo_preparacion_min: 15,
+      usa_inventario: false,
+      stock_actual: null,
+      stock_minimo: 5,
+      estado_inventario: 'disponible'
+    };
+    
     await cargarMenu();
   } catch (err) {
     alert('Error al crear item');
@@ -502,6 +584,121 @@ input, textarea {
   border-radius: 4px;
   cursor: pointer;
   padding: 4px 8px;
+}
+
+/* ESTILOS INVENTARIO */
+.inventory-controls {
+  margin: 16px 0;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  cursor: pointer;
+}
+
+.inventory-fields {
+  margin-top: 12px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.inventory-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.inventory-controls-edit {
+  margin-top: 8px;
+  padding: 12px;
+  background: #f3f4f6;
+  border-radius: 6px;
+}
+
+.stock-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.stock-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.edit-input.stock {
+  width: 70px;
+}
+
+.estado-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.estado-row label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.estado-row select {
+  flex: 1;
+  padding: 6px;
+  border-radius: 4px;
+}
+
+.inventory-badge {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-disponible {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-poco_stock {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge-no_disponible {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 /* ESTILOS MESAS */

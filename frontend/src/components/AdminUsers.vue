@@ -229,10 +229,14 @@ onMounted(() => {
 
 .table-container {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
 }
 
 table {
   width: 100%;
+  min-width: 600px;
   border-collapse: collapse;
 }
 

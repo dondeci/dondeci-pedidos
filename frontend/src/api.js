@@ -54,8 +54,8 @@ export default {
     return api.get('/menu');
   },
 
-  agregarMenuItem(nombre, descripcion, categoria, precio, tiempo, stock) {
-    return api.post('/menu', { nombre, descripcion, categoria, precio, tiempo_preparacion_min: tiempo, stock });
+  agregarMenuItem(itemData) {
+    return api.post('/menu', itemData);
   },
 
   updateMenuItem(id, item) {
@@ -98,7 +98,20 @@ export default {
 
   // ============= ITEMS DEL PEDIDO =============
   actualizarEstadoItem(id, estado) {
-    return api.put(`/pedido-items/${id}/estado`, { estado });
+    return api.put(`/pedidos/items/${id}/estado`, { estado });
+  },
+
+  // Individual item tracking
+  iniciarItem(id) {
+    return api.put(`/pedidos/items/${id}/start`);
+  },
+
+  completarItem(id) {
+    return api.put(`/pedidos/items/${id}/complete`);
+  },
+
+  servirItem(id) {
+    return api.put(`/pedidos/items/${id}/serve`);
   },
 
   // ============= PAGOS =============
@@ -117,6 +130,23 @@ export default {
 
   getReporteHistorico() {
     return api.get('/reportes/historico');
+  },
+
+  getTiemposCocina(params = {}) {
+    return api.get('/reportes/tiempos-cocina', { params });
+  },
+
+  getTopPlatos(limit = 10) {
+    return api.get(`/reportes/top-platos?limit=${limit}`);
+  },
+
+  // ============= PÚBLICO (Sin autenticación) =============
+  getPedidoStatusPublico(id) {
+    return api.get(`/pedidos/${id}/status-publico`);
+  },
+
+  getMesaPedidoActual(mesaNumero) {
+    return api.get(`/mesas/${mesaNumero}/pedido-actual`);
   },
 
   // ============= IMPRESORA =============

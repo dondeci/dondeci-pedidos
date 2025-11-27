@@ -136,6 +136,9 @@
                   {{ obtenerEmojiMetodo(pedido.metodo_pago) }} {{ pedido.metodo_pago.toUpperCase() }}
                 </span>
                 <span class="timestamp">{{ formatearHora(pedido.created_at) }}</span>
+                <button @click="verDetallesPago(pedido.id)" class="btn btn-sm btn-info">
+                  👁️ Ver
+                </button>
               </div>
             </div>
           </div>
@@ -145,7 +148,7 @@
         <div id="ticket" class="ticket-impresion" v-if="ticketData">
           <div class="ticket-content">
             <div class="ticket-header">
-              <h3>🍽️ RESTAURANTE POS</h3>
+              <h3>🍽️ RESTAURANTE SAZON DE LA SIERRA</h3>
               <p>NIT: 900.123.456-7</p>
               <p>Calle 123 # 45-67</p>
               <p>Tel: (601) 123 4567</p>
@@ -191,6 +194,59 @@
         </div>
       </template>
     </div>
+
+    <!-- Modal de Detalles del Pago -->
+    <div v-if="pagoDetalle" class="modal-overlay" @click.self="cerrarDetallePago">
+      <div class="modal-detalle">
+        <div class="modal-header">
+          <h3>💳 Detalles del Pago</h3>
+          <button @click="cerrarDetallePago" class="btn-cerrar">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="detalle-info">
+            <div class="info-row">
+              <span>Mesa:</span>
+              <strong>{{ pagoDetalle.mesa_numero }}</strong>
+            </div>
+            <div class="info-row" v-if="pagoDetalle.metodo_pago">
+              <span>Método de Pago:</span>
+              <strong>{{ obtenerEmojiMetodo(pagoDetalle.metodo_pago) }} {{ pagoDetalle.metodo_pago.toUpperCase() }}</strong>
+            </div>
+            <div class="info-row">
+              <span>Hora:</span>
+              <strong>{{ formatearHora(pagoDetalle.created_at) }}</strong>
+            </div>
+            <div class="info-row">
+              <span>Cajero:</span>
+              <strong>{{ usuarioStore.usuario.nombre }}</strong>
+            </div>
+          </div>
+
+          <div class="detalle-items">
+            <h4>Items del Pedido</h4>
+            <div class="items-tabla">
+              <div class="item-row header-row">
+                <span>Cant.</span>
+                <span>Descripción</span>
+                <span>Precio</span>
+                <span>Total</span>
+              </div>
+              <div v-for="(item, index) in itemsAgrupados" :key="index" class="item-row">
+                <span>{{ item.cantidad }}</span>
+                <span>{{ item.nombre }}</span>
+                <span>${{ Number(item.precio_unitario).toFixed(2) }}</span>
+                <span>${{ Number(item.total).toFixed(2) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="detalle-total">
+            <span>TOTAL:</span>
+            <strong>${{ pagoDetalle.total }}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -212,6 +268,7 @@ const metodoSeleccionado = ref('');
 const montoRecibido = ref(null);
 const pedidosPagadosHoy = ref([]);
 const ticketData = ref(null);
+const pagoDetalle = ref(null);
 
 const metodoPagos = ['efectivo', 'tarjeta', 'nequi', 'otro_digital'];
 
@@ -221,6 +278,31 @@ const pedidosListosPagar = computed(() => {
   return [...listos, ...enCaja].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 });
 const pedidosPagados = computed(() => pedidoStore.pedidosPorEstado.pagado);
+
+// Agrupar items por nombre para mostrar cantidades consolidadas
+const itemsAgrupados = computed(() => {
+  if (!pagoDetalle.value || !pagoDetalle.value.items) return [];
+  
+  const grupos = {};
+  
+  pagoDetalle.value.items.forEach(item => {
+    const key = `${item.menu_item_id || item.nombre}`;
+    
+    if (!grupos[key]) {
+      grupos[key] = {
+        nombre: item.nombre,
+        precio_unitario: item.precio_unitario || item.precio || 0,
+        cantidad: 0,
+        total: 0
+      };
+    }
+    
+    grupos[key].cantidad += item.cantidad;
+    grupos[key].total += (item.precio_unitario || item.precio || 0) * item.cantidad;
+  });
+  
+  return Object.values(grupos);
+});
 
 const actualizarPedidos = async () => {
   loading.value = true;
@@ -326,6 +408,20 @@ const procesarPago = async () => {
     console.error(err);
     alert('❌ Error al registrar pago');
   }
+};
+
+const verDetallesPago = async (pedidoId) => {
+  try {
+    const response = await api.getPedido(pedidoId);
+    pagoDetalle.value = response.data;
+  } catch (err) {
+    console.error('Error cargando detalles:', err);
+    alert('❌ Error al cargar detalles del pago');
+  }
+};
+
+const cerrarDetallePago = () => {
+  pagoDetalle.value = null;
 };
 
 onMounted(() => {
@@ -717,6 +813,137 @@ onMounted(() => {
     display: block;
     visibility: visible;
   }
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.modal-detalle {
+  background: white;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.btn-cerrar {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  transition: color 0.2s;
+}
+
+.btn-cerrar:hover {
+  color: #000;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.detalle-info {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.detalle-items {
+  margin-bottom: 20px;
+}
+
+.detalle-items h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+}
+
+.items-tabla {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.item-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 80px 80px;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.item-row:last-child {
+  border-bottom: none;
+}
+
+.item-row.header-row {
+  background: #f3f4f6;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.item-row span:nth-child(1) {
+  text-align: center;
+}
+
+.item-row span:nth-child(3),
+.item-row span:nth-child(4) {
+  text-align: right;
+}
+
+.detalle-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.btn-sm {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.btn-info {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.btn-info:hover {
+  background: #2563eb;
 }
 
 </style>

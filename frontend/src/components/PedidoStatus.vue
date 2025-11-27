@@ -30,6 +30,9 @@
         <div class="status-text">
           <h2>{{ getEstadoTexto(pedido.estado) }}</h2>
           <p>{{ getEstadoDescripcion(pedido.estado) }}</p>
+          <div v-if="pedido.started_at" class="timer-badge">
+            ⏱️ {{ getTiempoTranscurrido(pedido.started_at) }}
+          </div>
         </div>
       </div>
 
@@ -49,15 +52,39 @@
       <div class="items-section">
         <h3>Tu Orden</h3>
         <div class="items-list">
-          <div v-for="item in pedido.items" :key="item.id" class="item-row" :class="{ 'item-ready': item.estado === 'listo' }">
-            <div class="item-info">
-              <span class="qty">{{ item.cantidad }}x</span>
-              <span class="name">{{ item.nombre }}</span>
+          <div v-for="item in items" :key="item.id" class="item-row-dynamic">
+            <div class="item-header">
+              <div class="item-name-qty">
+                <span class="qty">{{ item.cantidad }}x</span>
+                <span class="name">{{ item.nombre }}</span>
+              </div>
+              <span class="status-badge" :class="getStatusClass(item)">{{ getStatusText(item) }}</span>
             </div>
-            <div class="item-status">
-              <span v-if="item.estado === 'listo'" class="badge-ready">Listo</span>
-              <span v-else class="badge-prep">Preparando</span>
+            
+            <!-- Barra de progreso individual -->
+            <div class="item-progress-track">
+              <div 
+                class="item-progress-fill" 
+                :class="getStatusClass(item)"
+                :style="{ width: getItemProgress(item) + '%' }"
+              ></div>
             </div>
+          </div>
+        </div>
+        
+        <!-- Estadísticas de Progreso -->
+        <div v-if="estadisticas" class="stats-summary">
+          <div class="stat-item">
+            <span class="stat-label">Servidos</span>
+            <span class="stat-value">{{ estadisticas.servidos }}/{{ estadisticas.total_items }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Listos</span>
+            <span class="stat-value">{{ estadisticas.listos }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">En Preparación</span>
+            <span class="stat-value">{{ estadisticas.en_preparacion }}</span>
           </div>
         </div>
       </div>
@@ -71,53 +98,57 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { useRoute } from 'vue-router';
 import api from '../api';
 import socket from '../socket';
 
-const route = useRoute();
-const pedidoId = route.params.id;
+// Detectar tipo de ruta y extraer ID
+const path = window.location.pathname;
+const pathParts = path.split('/');
+const routeType = pathParts[1]; // 'pedido' o 'mesa'
+const routeId = pathParts[2]; // ID del pedido o número de mesa
 
 const pedido = ref(null);
 const loading = ref(true);
 const error = ref(null);
+const esMesa = routeType === 'mesa';
+const mesaNumero = ref(esMesa ? routeId : null);
 
 const cargarPedido = async () => {
   loading.value = true;
   error.value = null;
   try {
-    const response = await api.getPedido(pedidoId);
-    pedido.value = response.data;
+    let response;
+    
+    if (esMesa) {
+      // Cargar pedido actual de la mesa
+      response = await api.getMesaPedidoActual(routeId);
+    } else {
+      // Cargar pedido específico
+      response = await api.getPedidoStatusPublico(routeId);
+    }
+    
+    pedido.value = response.data.pedido;
+    items.value = response.data.items;
+    estadisticas.value = response.data.estadisticas;
   } catch (err) {
-    error.value = 'El pedido no existe o ya fue cerrado.';
+    if (esMesa && err.response?.status === 404) {
+      error.value = 'No hay un pedido activo en esta mesa. ¡Escanea el código del menú para ordenar!';
+    } else {
+      error.value = 'No pudimos encontrar la información del pedido.';
+    }
     console.error(err);
   } finally {
     loading.value = false;
   }
 };
 
+const items = ref([]);
+const estadisticas = ref(null);
+const now = ref(Date.now());
+
 const porcentajeProgreso = computed(() => {
-  if (!pedido.value) return 0;
-  const estados = ['nuevo', 'en_cocina', 'listo', 'servido', 'pagado'];
-  const index = estados.indexOf(pedido.value.estado);
-  
-  if (pedido.value.estado === 'en_cocina') {
-      // Calcular basado en items listos
-      const total = pedido.value.items.length;
-      const listos = pedido.value.items.filter(i => i.estado === 'listo').length;
-      const base = 25; // Inicio de "en cocina"
-      const avance = (listos / total) * 50; // Max 50% extra
-      return base + avance;
-  }
-  
-  const porcentajes = {
-      nuevo: 10,
-      en_cocina: 25,
-      listo: 75,
-      servido: 90,
-      pagado: 100
-  };
-  return porcentajes[pedido.value.estado] || 0;
+  if (!estadisticas.value) return 0;
+  return estadisticas.value.progreso_porcentaje || 0;
 });
 
 const getEstadoTexto = (estado) => {
@@ -146,33 +177,95 @@ const getEstadoDescripcion = (estado) => {
   return desc[estado] || '';
 };
 
+// Calcular tiempo transcurrido desde que inició
+const getTiempoTranscurrido = (startedAt) => {
+  if (!startedAt) return '0min';
+  const start = new Date(startedAt);
+  // Usar Date.now() directamente, el componente se re-renderiza por el timer
+  const diffMinutes = Math.floor((Date.now() - start) / 60000);
+  
+  if (diffMinutes < 1) return 'Recién iniciado';
+  if (diffMinutes === 1) return '1 min';
+  return `${diffMinutes} min`;
+};
+
+const getItemProgress = (item) => {
+  if (item.estado === 'servido' || item.estado === 'listo') return 100;
+  if (item.estado === 'pendiente' || !item.started_at) return 5;
+  
+  const startTime = new Date(item.started_at).getTime();
+  const elapsed = now.value - startTime;
+  const estimadoMs = (item.tiempo_estimado || 15) * 60 * 1000;
+  
+  let percent = (elapsed / estimadoMs) * 100;
+  return Math.min(Math.max(percent, 5), 95);
+};
+
+const getStatusText = (item) => {
+  if (item.estado === 'servido') return 'Disfrutando';
+  if (item.estado === 'listo') return '¡Listo para servir!';
+  if (item.estado === 'en_preparacion') return 'Cocinando...';
+  return 'En espera';
+};
+
+const getStatusClass = (item) => {
+  if (item.estado === 'servido') return 'bg-success';
+  if (item.estado === 'listo') return 'bg-ready';
+  if (item.estado === 'en_preparacion') return 'bg-cooking';
+  return 'bg-pending';
+};
+
 const setupRealTime = () => {
     if (!socket.connected) socket.connect();
 
-    socket.on('pedido_actualizado', ({ id, estado }) => {
+    socket.on('pedido_actualizado', ({ id, estado: nuevoEstado }) => {
         if (pedido.value && pedido.value.id === id) {
-            pedido.value.estado = estado;
+            pedido.value.estado = nuevoEstado;
+            cargarPedido();
         }
     });
 
-    socket.on('item_actualizado', ({ id, pedido_id, estado }) => {
+    socket.on('item_started', ({ item_id, pedido_id }) => {
         if (pedido.value && pedido.value.id === pedido_id) {
-            const item = pedido.value.items.find(i => i.id === id);
-            if (item) {
-                item.estado = estado;
-            }
+            cargarPedido();
+        }
+    });
+
+    socket.on('item_ready', ({ item_id, pedido_id }) => {
+        if (pedido.value && pedido.value.id === pedido_id) {
+            cargarPedido();
+        }
+    });
+
+    socket.on('item_served', ({ item_id, pedido_id }) => {
+        if (pedido.value && pedido.value.id === pedido_id) {
+            cargarPedido();
         }
     });
 };
 
+let timerInterval = null;
+
 onMounted(() => {
   cargarPedido();
   setupRealTime();
+  
+  // Actualizar cada minuto para refrescar timers
+  timerInterval = setInterval(() => {
+    // Forzar actualización del componente
+    cargarPedido();
+  }, 60000); // Cada minuto
 });
 
 onUnmounted(() => {
     socket.off('pedido_actualizado');
-    socket.off('item_actualizado');
+    socket.off('item_started');
+    socket.off('item_ready');
+    socket.off('item_served');
+    
+    if (timerInterval) {
+        clearInterval(timerInterval);
+    }
 });
 </script>
 
@@ -253,6 +346,18 @@ onUnmounted(() => {
 .status-text p {
   color: #6b7280;
   font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.timer-badge {
+  display: inline-block;
+  background: #f3f4f6;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4b5563;
+  margin-top: 8px;
 }
 
 .progress-section {
@@ -296,50 +401,96 @@ onUnmounted(() => {
   padding-bottom: 12px;
 }
 
-.item-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.item-row-dynamic {
   padding: 12px 0;
   border-bottom: 1px solid #f3f4f6;
 }
 
-.item-row:last-child {
+.item-row-dynamic:last-child {
   border-bottom: none;
 }
 
-.item-info {
+.item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.item-name-qty {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .qty {
   font-weight: 700;
   color: #6b7280;
+  font-size: 14px;
 }
 
 .name {
   font-weight: 500;
   color: #111827;
+  font-size: 14px;
 }
 
-.badge-ready {
-  background: #d1fae5;
-  color: #065f46;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+.status-badge {
+  font-size: 11px;
   font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
 }
 
-.badge-prep {
-  background: #fef3c7;
-  color: #92400e;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
+.status-badge.bg-success { color: #065f46; background: #d1fae5; }
+.status-badge.bg-ready { color: #065f46; background: #d1fae5; }
+.status-badge.bg-cooking { color: #92400e; background: #fef3c7; }
+.status-badge.bg-pending { color: #6b7280; background: #f3f4f6; }
+
+.item-progress-track {
+  height: 6px;
+  background: #f3f4f6;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.item-progress-fill {
+  height: 100%;
+  transition: width 1s linear;
+}
+
+.item-progress-fill.bg-success { background: #10b981; }
+.item-progress-fill.bg-ready { background: #10b981; }
+.item-progress-fill.bg-cooking { background: #f59e0b; }
+.item-progress-fill.bg-pending { background: #d1d5db; }
+
+.stats-summary {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
 }
 
 .footer-note {

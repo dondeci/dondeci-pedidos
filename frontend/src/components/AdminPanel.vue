@@ -59,7 +59,7 @@
                 <span class="metodo-nombre">{{ metodo.metodo_pago.toUpperCase() }}</span>
                 <span class="metodo-cantidad">{{ metodo.cantidad }} transacciones</span>
               </div>
-              <div class="metodo-total">${{ metodo.total.toFixed(2) }}</div>
+              <div class="metodo-total">${{ Number(metodo.total).toFixed(2) }}</div>
             </div>
           </div>
         </div>
@@ -79,7 +79,7 @@
           <div class="total-acumulado">
             <div class="total-card">
               <div class="total-label">Total Acumulado</div>
-              <div class="total-value">${{ totalAcumulado.total_acumulado?.toFixed(2) || '0.00' }}</div>
+              <div class="total-value">${{ Number(totalAcumulado.total_acumulado).toFixed(2) || '0.00' }}</div>
               <div class="total-subtitle">{{ totalAcumulado.total_transacciones || 0 }} transacciones</div>
             </div>
           </div>
@@ -101,7 +101,7 @@
                 <tr v-for="dia in ventasPorDia" :key="dia.fecha">
                   <td>{{ formatearFecha(dia.fecha) }}</td>
                   <td>{{ dia.cantidad_transacciones }}</td>
-                  <td class="total-dia">${{ dia.total_dia.toFixed(2) }}</td>
+                  <td class="total-dia">${{ Number(dia.total_dia).toFixed(2) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -125,6 +125,7 @@
                   <th>Items</th>
                   <th>Total</th>
                   <th>Estado</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -139,12 +140,157 @@
                       {{ pedido.estado.replace('_', ' ').toUpperCase() }}
                     </span>
                   </td>
+                  <td>
+                    <button @click="verDetallesPedido(pedido.id)" class="btn btn-sm btn-info">
+                      👁️ Ver
+                    </button>
+                  </td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
+
+        <!-- Tiempos de Cocina -->
+        <div class="section">
+          <h3>⏱️ Tiempos de Cocina</h3>
+          <div class="filters-row">
+            <input type="date" v-model="filtroFechaInicio" class="input-date" />
+            <input type="date" v-model="filtroFechaFin" class="input-date" />
+            <button @click="cargarTiemposCocina" class="btn btn-secondary">Filtrar</button>
+          </div>
+          
+          <div v-if="loadingTiempos" class="loading-small">Cargando estadísticas...</div>
+          
+          <div v-else-if="tiemposCocina.length > 0" class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Categoría</th>
+                  <th>Preparaciones</th>
+                  <th>Promedio</th>
+                  <th>Estimado</th>
+                  <th>Diferencia</th>
+                  <th>Min/Max</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="stat in tiemposCocina" :key="stat.menu_item_id">
+                  <td><strong>{{ stat.item_nombre }}</strong></td>
+                  <td><span class="categoria-badge">{{ stat.categoria }}</span></td>
+                  <td class="text-center">{{ stat.total_preparaciones }}</td>
+                  <td class="text-center"><strong>{{ Math.round(stat.tiempo_promedio) }} min</strong></td>
+                  <td class="text-center">{{ stat.tiempo_estimado || '-' }} min</td>
+                  <td class="text-center">
+                    <span :class="getDiferenciaClass(stat.diferencia_minutos)">
+                      {{ stat.diferencia_minutos > 0 ? '+' : '' }}{{ Math.round(stat.diferencia_minutos) }} min
+                    </span>
+                  </td>
+                  <td class="text-center text-small">
+                    {{ stat.tiempo_minimo }}/{{ stat.tiempo_maximo }} min
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div v-else class="empty-state">
+            No hay estadísticas de tiempos para el período seleccionado
+          </div>
+        </div>
+
+        <!-- Top Platos Más Pedidos -->
+        <div class="section">
+          <h3>🏆 Top Platos Más Pedidos</h3>
+          
+          <div v-if="loadingTopPlatos" class="loading-small">Cargando top platos...</div>
+          
+          <div v-else-if="topPlatos.length > 0" class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Plato</th>
+                  <th>Categoría</th>
+                  <th>Total Pedidos</th>
+                  <th>Ingresos Totales</th>
+                  <th>Precio Unitario</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(plato, index) in topPlatos" :key="plato.id">
+                  <td class="text-center"><strong>{{ index + 1 }}</strong></td>
+                  <td><strong>{{ plato.nombre }}</strong></td>
+                  <td><span class="categoria-badge">{{ plato.categoria }}</span></td>
+                  <td class="text-center"><strong>{{ plato.total_pedidos }}</strong></td>
+                  <td class="text-center">${{ Number(plato.ingresos_totales).toFixed(2) }}</td>
+                  <td class="text-center">${{ Number(plato.precio).toFixed(2) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div v-else class="empty-state">
+            No hay datos de platos pedidos
+          </div>
+        </div>
       </template>
+    </div>
+
+    <!-- Modal de Detalles del Pedido -->
+    <div v-if="pedidoDetalle" class="modal-overlay" @click.self="cerrarDetalle">
+      <div class="modal-detalle">
+        <div class="modal-header">
+          <h3>📋 Detalles del Pedido</h3>
+          <button @click="cerrarDetalle" class="btn-cerrar">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="detalle-info">
+            <div class="info-row">
+              <span>Mesa:</span>
+              <strong>{{ pedidoDetalle.mesa_numero }}</strong>
+            </div>
+            <div class="info-row">
+              <span>Estado:</span>
+              <span :class="['estado-badge', `estado-${pedidoDetalle.estado}`]">
+                {{ pedidoDetalle.estado.replace('_', ' ').toUpperCase() }}
+              </span>
+            </div>
+            <div class="info-row">
+              <span>Hora:</span>
+              <strong>{{ formatearHora(pedidoDetalle.created_at) }}</strong>
+            </div>
+            <div class="info-row" v-if="pedidoDetalle.metodo_pago">
+              <span>Método de Pago:</span>
+              <strong>{{ pedidoDetalle.metodo_pago.toUpperCase() }}</strong>
+            </div>
+          </div>
+
+          <div class="detalle-items">
+            <h4>Items del Pedido</h4>
+            <div class="items-tabla">
+              <div class="item-row header-row">
+                <span>Cant.</span>
+                <span>Descripción</span>
+                <span>Precio</span>
+                <span>Total</span>
+              </div>
+              <div v-for="(item, index) in itemsAgrupados" :key="index" class="item-row">
+                <span>{{ item.cantidad }}</span>
+                <span>{{ item.nombre }}</span>
+                <span>${{ Number(item.precio_unitario).toFixed(2) }}</span>
+                <span>${{ Number(item.total).toFixed(2) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="detalle-total">
+            <span>TOTAL:</span>
+            <strong>${{ pedidoDetalle.total }}</strong>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -167,6 +313,17 @@ const detallesVentas = ref([]);
 const pedidosHoy = ref([]);
 const ventasPorDia = ref([]);
 const totalAcumulado = ref({ total_transacciones: 0, total_acumulado: 0 });
+const pedidoDetalle = ref(null);
+
+// Tiempos de Cocina
+const tiemposCocina = ref([]);
+const loadingTiempos = ref(false);
+const filtroFechaInicio = ref('');
+const filtroFechaFin = ref('');
+
+// Top Platos
+const topPlatos = ref([]);
+const loadingTopPlatos = ref(false);
 
 const ventasTotal = computed(() => {
   return detallesVentas.value
@@ -176,6 +333,31 @@ const ventasTotal = computed(() => {
 
 const pedidosPagados = computed(() => {
   return pedidosHoy.value.filter(p => p.estado === 'pagado');
+});
+
+// Agrupar items por nombre para mostrar cantidades consolidadas
+const itemsAgrupados = computed(() => {
+  if (!pedidoDetalle.value || !pedidoDetalle.value.items) return [];
+  
+  const grupos = {};
+  
+  pedidoDetalle.value.items.forEach(item => {
+    const key = `${item.menu_item_id || item.nombre}`;
+    
+    if (!grupos[key]) {
+      grupos[key] = {
+        nombre: item.nombre,
+        precio_unitario: item.precio_unitario || item.precio || 0,
+        cantidad: 0,
+        total: 0
+      };
+    }
+    
+    grupos[key].cantidad += item.cantidad;
+    grupos[key].total += (item.precio_unitario || item.precio || 0) * item.cantidad;
+  });
+  
+  return Object.values(grupos);
 });
 
 const cargarReportes = async () => {
@@ -210,6 +392,58 @@ const formatearHora = (timestamp) => {
     hour: '2-digit',
     minute: '2-digit'
   });
+};
+
+const verDetallesPedido = async (pedidoId) => {
+  try {
+    const response = await api.getPedido(pedidoId);
+    pedidoDetalle.value = response.data;
+  } catch (err) {
+    console.error('Error cargando detalles:', err);
+    alert('❌ Error al cargar detalles del pedido');
+  }
+};
+
+const cerrarDetalle = () => {
+  pedidoDetalle.value = null;
+};
+
+// Cargar tiempos de cocina
+const cargarTiemposCocina = async () => {
+  loadingTiempos.value = true;
+  try {
+    const params = {};
+    if (filtroFechaInicio.value) params.fecha_inicio = filtroFechaInicio.value;
+    if (filtroFechaFin.value) params.fecha_fin = filtroFechaFin.value;
+    
+    const response = await api.getTiemposCocina(params);
+    tiemposCocina.value = response.data;
+  } catch (err) {
+    console.error('Error cargando tiempos de cocina:', err);
+  } finally {
+    loadingTiempos.value = false;
+  }
+};
+
+// Helper para clase de diferencia
+const getDiferenciaClass = (diferencia) => {
+  if (!diferencia) return '';
+  if (diferencia > 5) return 'diferencia-alta';
+  if (diferencia < -3) return 'diferencia-baja';
+  return 'diferencia-normal';
+};
+
+// Cargar top platos
+const cargarTopPlatos = async () => {
+  loadingTopPlatos.value = true;
+  try {
+    const response = await api.getTopPlatos(10);
+    topPlatos.value = response.data;
+  } catch (err) {
+    console.error('Error cargando top platos:', err);
+  } finally {
+    loadingTopPlatos.value = false;
+  }
 };
 
 // ================= REAL-TIME =================
@@ -259,6 +493,8 @@ const setupRealTime = () => {
 
 onMounted(() => {
   cargarReportes();
+  cargarTiemposCocina(); // Cargar estadísticas de tiempos
+  cargarTopPlatos(); // Cargar top platos
   setupRealTime();
 });
 
@@ -476,5 +712,148 @@ tr:hover {
 .total-dia {
   font-weight: 700;
   color: var(--color-success);
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.modal-detalle {
+  background: white;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.btn-cerrar {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  transition: color 0.2s;
+}
+
+.btn-cerrar:hover {
+  color: #000;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.detalle-info {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.detalle-items {
+  margin-bottom: 20px;
+}
+
+.detalle-items h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+}
+
+.items-tabla {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.item-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 80px 80px;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.item-row:last-child {
+  border-bottom: none;
+}
+
+.item-row.header-row {
+  background: #f3f4f6;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.item-row span:nth-child(1) {
+  text-align: center;
+}
+
+.item-row span:nth-child(3),
+.item-row span:nth-child(4) {
+  text-align: right;
+}
+
+.detalle-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.btn-sm {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.btn-info {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.btn-info:hover {
+  background: #2563eb;
 }
 </style>

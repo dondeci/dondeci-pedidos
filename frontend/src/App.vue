@@ -3,6 +3,12 @@
     <!-- Vista Pública del Menú -->
     <MenuView v-if="isPublicMenu" />
 
+    <!-- Vista Pública de los Códigos QR -->
+    <MesasQR v-else-if="isPublicMesasQR" />
+
+    <!-- Vista Pública del Estado del Pedido -->
+    <PedidoStatus v-else-if="isPublicPedidoStatus" />
+
     <!-- Aplicación Principal -->
     <template v-else>
       <!-- Si no hay usuario logueado, mostrar login -->
@@ -14,7 +20,7 @@
         <nav class="navbar">
           <div class="navbar-content">
             <div class="navbar-left">
-              <h1 class="logo">🍽️ Restaurante POS</h1>
+              <h1 class="logo">🍽️ Restaurante Sazon de la Sierra</h1>
               <div class="connection-status" :class="{ 'connected': isConnected }" title="Estado de conexión"></div>
               <span class="rol-badge" :class="`rol-${usuarioStore.usuario.rol}`">
                 {{ obtenerNombreRol(usuarioStore.usuario.rol) }}
@@ -48,10 +54,14 @@ import MeseroPanel from './components/MeseroPanel.vue';
 import CocineroPanel from './components/CocineroPanel.vue';
 import CajaPanel from './components/CajaPanel.vue';
 import AdminPanel from './components/AdminPanel.vue';
+import MesasQR from './components/MesasQR.vue';
 import MenuView from './components/MenuView.vue';
+import PedidoStatus from './components/PedidoStatus.vue';
 import socket from './socket';
 
 const isPublicMenu = ref(false);
+const isPublicMesasQR = ref(false);
+const isPublicPedidoStatus = ref(false);
 const isConnected = ref(false);
 
 // Agrega botón para mostrar/ocultar en el navbar
@@ -74,9 +84,16 @@ onMounted(() => {
     isConnected.value = false;
   });
 
-  // Detectar si estamos en la ruta pública del menú
-  if (window.location.pathname === '/menu') {
+  // Detectar si estamos en rutas públicas
+  const path = window.location.pathname;
+  if (path === '/menu') {
     isPublicMenu.value = true;
+  } else if (path.startsWith('/pedido/') && path.endsWith('/status')) {
+    isPublicPedidoStatus.value = true;
+  } else if (path.startsWith('/mesa/')) {
+    isPublicPedidoStatus.value = true; // Reutilizamos el componente PedidoStatus
+  } else if (path === '/mesas-qr') {
+    isPublicMesasQR.value = true;
   }
 });
 

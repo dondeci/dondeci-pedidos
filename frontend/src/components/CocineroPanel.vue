@@ -27,6 +27,7 @@
             <div v-for="pedido in pedidosNuevos" :key="pedido.id" class="pedido-card">
               <div class="card-header">
                 <span class="mesa-num">🪑 Mesa {{ pedido.mesa_numero }}</span>
+                <span class="mesero-info">👤 {{ pedido.mesero || 'Sin asignar' }}</span>
                 <button
                   @click="iniciarPedido(pedido.id)"
                   class="btn btn-warning btn-small"
@@ -40,7 +41,7 @@
                   <span class="name">{{ item.nombre }}</span>
                 </div>
               </div>
-              <div v-if="pedido.notas" class="notas">{{ pedido.notas }}</div>
+              <div v-if="pedido.notas" class="notas">📝 {{ pedido.notas }}</div>
             </div>
           </div>
         </div>
@@ -55,59 +56,56 @@
             <div v-for="pedido in pedidosEnCocina" :key="pedido.id" class="pedido-card pedido-cooking">
               <div class="card-header">
                 <span class="mesa-num">🪑 Mesa {{ pedido.mesa_numero }}</span>
+                <span class="mesero-info">👤 {{ pedido.mesero || 'Sin asignar' }}</span>
               </div>
-              <div class="items-list">
-                <div
-  v-for="item in pedido.items"
-  :key="item.id"
-  class="item-line"
-  :class="{ 'item-done': item.estado === 'listo' }"
-  style="width: 100%;"
->
-  <label class="item-touch-label" style="width:100%;display:flex;align-items:center;cursor:pointer;">
-    <input
-      type="checkbox"
-      :checked="item.estado === 'listo'"
-      @change="marcarItemListo(item.id, item.estado)"
-      class="item-checkbox"
-      style="margin-right:12px;"
-    />
-    <span class="qty" style="margin-right:12px;">{{ item.cantidad }}x</span>
-    <span class="name" style="flex:1;">{{ item.nombre }}</span>
-  </label>
-</div>
+              
+              <!-- Items individuales (ahora cada uno es un registro separado) -->
+              <div class="items-list-individual">
+                <div 
+                  v-for="(item, index) in pedido.items" 
+                  :key="item.id"
+                  :class="['individual-item', `estado-${item.estado || 'pendiente'}`]"
+                >
+                  <div class="item-info-row">
+                    <span class="item-nombre">{{ item.nombre }}</span>
+                    <div class="item-estado-badge">
+                      <span v-if="!item.estado || item.estado === 'pendiente'">⚪ Pendiente</span>
+                      <span v-else-if="item.estado === 'en_preparacion'" class="timer">
+                        🟡 {{ getTiempoTranscurrido(item.started_at) }}
+                      </span>
+                      <span v-else-if="item.estado === 'listo'">🟢 Listo</span>
+                      <span v-else-if="item.estado === 'servido'">✅ Servido</span>
+                    </div>
+                  </div>
+                  
+                  <div class="item-actions">
+                    <button
+                      v-if="!item.estado || item.estado === 'pendiente'"
+                      @click="iniciarItem(item.id)"
+                      class="btn-item btn-start"
+                    >
+                      Iniciar
+                    </button>
+                    <button
+                      v-else-if="item.estado === 'en_preparacion'"
+                      @click="completarItem(item.id)"
+                      class="btn-item btn-complete"
+                    >
+                      Completar
+                    </button>
+                    <span v-else-if="item.estado === 'listo'" class="waiting-text">
+                      Esperando mesero...
+                    </span>
+                    <span v-else-if="item.estado === 'servido'" class="served-text">
+                      ✓ Servido
+                    </span>
+                  </div>
+                </div>
               </div>
+              
               <div class="progreso-bar">
                 <div class="progreso-fill" :style="{ width: porcentajePedido(pedido) + '%' }"></div>
-              </div>
-              <button
-                v-if="allItemsReady(pedido)"
-                @click="completarPedido(pedido.id)"
-                class="btn btn-success btn-full"
-              >
-                ✅ Completar Pedido
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Pedidos Listos -->
-        <div class="section">
-          <h3>✅ Listos para Servir</h3>
-          <div v-if="pedidosListos.length === 0" class="empty-state">
-            Sin pedidos listos
-          </div>
-          <div v-else class="pedidos-columns">
-            <div v-for="pedido in pedidosListos" :key="pedido.id" class="pedido-card pedido-ready">
-              <div class="card-header">
-                <span class="mesa-num">🪑 Mesa {{ pedido.mesa_numero }}</span>
-                <span class="badge-success">LISTO</span>
-              </div>
-              <div class="items-list">
-                <div v-for="item in pedido.items" :key="item.id" class="item-line">
-                  <span class="qty">{{ item.cantidad }}x</span>
-                  <span class="name">{{ item.nombre }}</span>
-                </div>
+                <span class="progreso-text">{{ porcentajePedido(pedido) }}%</span>
               </div>
             </div>
           </div>
@@ -129,16 +127,23 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { usePedidoStore } from '../stores/pedidoStore';
 import { useNotificaciones } from '../composables/useNotificaciones';
+import api from '../api';
+import socket from '../socket';
 
 const { notificaciones, cerrarNotificacion } = useNotificaciones('cocinero');
 
 const pedidoStore = usePedidoStore();
 const loading = ref(false);
 let autoRefreshInterval = null;
+let timerInterval = null;
 
 const pedidosNuevos = computed(() => pedidoStore.pedidosPorEstado.nuevo || []);
-const pedidosEnCocina = computed(() => pedidoStore.pedidosPorEstado.en_cocina || []);
-const pedidosListos = computed(() => pedidoStore.pedidosPorEstado.listo || []);
+const pedidosEnCocina = computed(() => {
+    // Mostrar pedidos en_cocina Y listo (hasta que el mesero los marque como servidos)
+    const enCocina = pedidoStore.pedidosPorEstado.en_cocina || [];
+    const listos = pedidoStore.pedidosPorEstado.listo || [];
+    return [...enCocina, ...listos];
+});
 
 const actualizarPedidos = async () => {
   loading.value = true;
@@ -159,40 +164,91 @@ const iniciarPedido = async (pedidoId) => {
   }
 };
 
-const completarPedido = async (pedidoId) => {
+// Ya no necesitamos agrupar - cada item es un registro individual
+
+// Iniciar preparación de un item individual
+const iniciarItem = async (itemId) => {
   try {
-    await pedidoStore.actualizarEstadoPedido(pedidoId, 'listo');
+    await api.iniciarItem(itemId);
+    await actualizarPedidos();
   } catch (err) {
-    alert('Error completando pedido');
+    console.error('Error iniciando item:', err);
+    alert('Error al iniciar item');
   }
 };
 
-const marcarItemListo = async (itemId, estadoActual) => {
-  const nuevoEstado = estadoActual === 'listo' ? 'pendiente' : 'listo';
+// Completar preparación de un item individual
+const completarItem = async (itemId) => {
   try {
-    await pedidoStore.actualizarEstadoItem(itemId, nuevoEstado);
+    await api.completarItem(itemId);
+    await actualizarPedidos();
   } catch (err) {
-    console.error('Error marcando item:', err);
+    console.error('Error completando item:', err);
+    alert('Error al completar item');
   }
 };
 
+// Calcular tiempo transcurrido desde que se inició
+const getTiempoTranscurrido = (startedAt) => {
+  if (!startedAt) return '0min';
+  const start = new Date(startedAt);
+  const now = new Date();
+  const diffMinutes = Math.floor((now - start) / 60000);
+  return `${diffMinutes}min`;
+};
+
+// Calcular porcentaje de progreso del pedido
 const porcentajePedido = (pedido) => {
-  const total = pedido.items.length;
-  const listos = pedido.items.filter(i => i.estado === 'listo').length;
-  return Math.round((listos / total) * 100);
-};
-
-const allItemsReady = (pedido) => {
-  return pedido.items.every(i => i.estado === 'listo');
+  const totalItems = pedido.items.length;
+  const itemsCompletados = pedido.items.filter(item => 
+    item.estado === 'listo' || item.estado === 'servido'
+  ).length;
+  
+  return totalItems > 0 ? Math.round((itemsCompletados / totalItems) * 100) : 0;
 };
 
 onMounted(() => {
   actualizarPedidos();
-  // Auto-refresh eliminado para evitar recargas innecesarias
+  
+  // Socket listeners para actualizaciones en tiempo real
+  if (!socket.connected) socket.connect();
+  
+  socket.on('nuevo_pedido', () => {
+      console.log('🆕 Nuevo pedido recibido en cocina');
+      pedidoStore.cargarPedidosActivos();
+  });
+  
+  socket.on('pedido_actualizado', () => {
+      console.log('📝 Pedido actualizado en cocina');
+      pedidoStore.cargarPedidosActivos();
+  });
+  
+  socket.on('item_started', () => {
+      console.log('▶️ Item iniciado');
+      pedidoStore.cargarPedidosActivos();
+  });
+  
+  socket.on('item_ready', () => {
+      console.log('✅ Item completado');
+      pedidoStore.cargarPedidosActivos();
+  });
+  
+  // Actualizar timers cada minuto
+  timerInterval = setInterval(() => {
+    // Forzar re-render para actualizar timers
+    pedidoStore.cargarPedidosActivos();
+  }, 60000);
 });
 
 onUnmounted(() => {
-  // Limpieza si fuera necesaria
+  socket.off('nuevo_pedido');
+  socket.off('pedido_actualizado');
+  socket.off('item_started');
+  socket.off('item_ready');
+  
+  if (timerInterval) {
+    clearInterval(timerInterval);
+  }
 });
 </script>
 
@@ -252,34 +308,32 @@ onUnmounted(() => {
 .section h3 {
   margin: 0 0 16px 0;
   font-size: 18px;
+  color: #374151;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: #9ca3af;
 }
 
 .pedidos-columns {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 16px;
 }
 
 .pedido-card {
-  border: 2px solid var(--color-border);
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
   border-radius: 8px;
   padding: 16px;
-  background: #f9fafb;
-  transition: all 0.3s;
-}
-
-.pedido-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
 }
 
 .pedido-cooking {
-  border-left: 4px solid #f59e0b;
-  background: #fef3c7;
-}
-
-.pedido-ready {
-  border-left: 4px solid #10b981;
-  background: #ecfdf5;
+  border-color: #fbbf24;
+  background: #fffbeb;
 }
 
 .card-header {
@@ -287,22 +341,19 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .mesa-num {
   font-weight: 700;
   font-size: 16px;
+  color: #1f2937;
 }
 
-.badge-success {
-  background: #10b981;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
+.mesero-info {
+  font-size: 13px;
+  color: #6b7280;
 }
 
 .items-list {
@@ -310,165 +361,231 @@ onUnmounted(() => {
 }
 
 .item-line {
+  padding: 6px 0;
   display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 12px;
-  margin: 4px 0;
-}
-
-.item-touch-label {
-  width: 100%;
-  min-height: 44px;         /* Para buen touch */
-  padding: 6px 12px;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-}
-.item-checkbox {
-  width: 28px;
-  height: 28px;
-  cursor: pointer;
-}
-.name {
-  flex: 1;
-  font-weight: 600;
-  /* Puedes poner color distinto si quieres mostrar si está listo */
-}
-.item-checkbox-label {
-  display: flex;
-  align-items: center;
-  padding: 4px;
-  /* Opcional: background para depurar la zona táctil */
-}
-.item-done {
-  opacity: 0.5;
-  text-decoration: line-through;
+  gap: 8px;
 }
 
 .qty {
   font-weight: 700;
-  color: #666;
+  color: #f59e0b;
   min-width: 30px;
 }
 
 .name {
   flex: 1;
-  font-weight: 600;
+  color: #374151;
 }
 
 .notas {
-  background: #fef08a;
+  background: #fef3c7;
   padding: 8px;
   border-radius: 4px;
+  font-size: 13px;
+  color: #92400e;
+  margin-top: 8px;
+}
+
+/* Individual Items Styles */
+.item-group {
+  margin-bottom: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.item-group-header {
+  background: #f3f4f6;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.item-group-name {
+  font-weight: 600;
+  color: #374151;
+  font-size: 14px;
+}
+
+.individual-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+}
+
+.individual-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 2px solid #e5e7eb;
+  background: white;
+  min-width: 200px;
+  transition: all 0.2s;
+}
+
+.individual-item.estado-pendiente {
+  border-color: #d1d5db;
+}
+
+.individual-item.estado-en_preparacion {
+  border-color: #fbbf24;
+  background: #fffbeb;
+}
+
+.individual-item.estado-listo {
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+.individual-item.estado-servido {
+  border-color: #6b7280;
+  background: #f3f4f6;
+  opacity: 0.7;
+}
+
+.item-number {
+  font-weight: 700;
+  color: #6b7280;
   font-size: 12px;
-  margin-bottom: 12px;
+  min-width: 24px;
+}
+
+.item-estado-badge {
+  flex: 1;
+  font-size: 13px;
+}
+
+.timer {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.item-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-item {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-start {
+  background: #fbbf24;
+  color: white;
+}
+
+.btn-start:hover {
+  background: #f59e0b;
+}
+
+.btn-complete {
+  background: #10b981;
+  color: white;
+}
+
+.btn-complete:hover {
+  background: #059669;
+}
+
+.waiting-text, .served-text {
+  font-size: 11px;
+  color: #6b7280;
   font-style: italic;
-  color: #333;
 }
 
 .progreso-bar {
-  width: 100%;
-  height: 6px;
+  position: relative;
+  height: 24px;
   background: #e5e7eb;
-  border-radius: 3px;
+  border-radius: 12px;
   overflow: hidden;
-  margin-bottom: 12px;
+  margin-top: 12px;
 }
 
 .progreso-fill {
   height: 100%;
-  background: linear-gradient(90deg, #f59e0b, #10b981);
-  transition: width 0.3s;
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+  transition: width 0.3s ease;
 }
 
-.btn-small {
-  padding: 6px 12px;
+.progreso-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   font-size: 12px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
 }
 
 .btn-warning {
   background: #f59e0b;
+  color: white;
 }
 
-.btn-full {
-  width: 100%;
+.btn-warning:hover {
+  background: #d97706;
 }
 
-.empty-state {
-  text-align: center;
-  padding: 40px;
-  color: #999;
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.btn-small {
+  padding: 6px 12px;
+  font-size: 13px;
 }
 
 .loading {
   text-align: center;
   padding: 40px;
+  color: #6b7280;
 }
 
-@media (max-width: 768px) {
-  .pedidos-columns {
-    grid-template-columns: 1fr;
-  }
-
-  .panel-header {
-    flex-direction: column;
-    gap: 12px;
-  }
-}
+/* Notificaciones */
 .notificaciones-container {
   position: fixed;
+  top: 80px;
   right: 20px;
-  bottom: 20px;
-  max-width: 350px;
   z-index: 1000;
-  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 400px;
 }
 
 .notificacion {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
   background: white;
+  border-left: 4px solid #3b82f6;
   padding: 16px;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  border-left: 4px solid #999;
-  animation: slideIn 0.3s ease-out;
-  font-weight: 600;
-  pointer-events: auto;
-}
-
-.btn-cerrar-notif {
-  background: none;
-  border: none;
-  color: inherit;
-  font-size: 18px;
-  cursor: pointer;
-  padding: 0;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-  flex-shrink: 0;
-}
-
-.btn-cerrar-notif:hover {
-  opacity: 1;
-}
-
-.notif-nuevo {
-  border-left-color: #ef4444;
-  background: #fee2e2;
-}
-
-.notif-listo {
-  border-left-color: #10b981;
-  background: #ecfdf5;
-}
-
-.notif-pago {
-  border-left-color: #f59e0b;
-  background: #fef3c7;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: slideIn 0.3s ease;
 }
 
 @keyframes slideIn {
@@ -482,12 +599,35 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 768px) {
-  .notificaciones-container {
-    right: 10px;
-    left: 10px;
-    top: 70px;
-  }
+.notif-nuevo {
+  border-left-color: #10b981;
 }
 
+.btn-cerrar-notif {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  color: #9ca3af;
+  padding: 0;
+  margin-left: auto;
+}
+
+.btn-cerrar-notif:hover {
+  color: #374151;
+}
+
+@media (max-width: 768px) {
+  .pedidos-columns {
+    grid-template-columns: 1fr;
+  }
+  
+  .individual-items {
+    flex-direction: column;
+  }
+  
+  .individual-item {
+    min-width: 100%;
+  }
+}
 </style>
