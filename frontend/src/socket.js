@@ -6,7 +6,7 @@ const getSocketUrl = () => {
     const isLocal = hostname === 'localhost' ||
         hostname.startsWith('192.168.') ||
         hostname.startsWith('10.') ||
-        (hostname.startsWith('172.') && parseInt(hostname.split('.')[1]) >= 16 && parseInt(hostname.split('.')[1]) <= 31);
+        hostname.startsWith('172.') && parseInt(hostname.split('.')[1]) >= 16 && parseInt(hostname.split('.')[1]) <= 31;
 
     if (isLocal) {
         return `http://${hostname}:3000`;
@@ -18,6 +18,9 @@ const getSocketUrl = () => {
 const socket = io(getSocketUrl(), {
     autoConnect: false,
     reconnection: true,
+    // ✅ AGREGAR ESTO:
+    transports: ['websocket'], // Evita polling y problemas de sesión en Render
+    withCredentials: true      // A veces necesario para CORS
 });
 
 export default socket;

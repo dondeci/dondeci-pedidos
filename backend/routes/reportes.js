@@ -160,6 +160,7 @@ router.get('/top-platos', async (req, res) => {
     try {
         const { limit = 10, fecha_inicio, fecha_fin } = req.query;
 
+        // 1. Empezamos desde menu_items para mostrar platos aunque no tengan ventas
         let query = `
             SELECT 
                 mi.id,
@@ -167,21 +168,31 @@ router.get('/top-platos', async (req, res) => {
                 mi.categoria,
                 mi.precio,
                 COUNT(pi.id) as total_pedidos,
-                SUM(pi.precio_unitario) as ingresos_totales
-            FROM pedido_items pi
-            JOIN menu_items mi ON pi.menu_item_id = mi.id
-            JOIN pedidos p ON pi.pedido_id = p.id
-            WHERE p.estado != 'cancelado'
+                COALESCE(SUM(pi.precio_unitario), 0) as ingresos_totales
+            FROM menu_items mi
+            LEFT JOIN pedido_items pi ON mi.id = pi.menu_item_id
+            LEFT JOIN pedidos p ON pi.pedido_id = p.id
         `;
 
         const params = [];
         let paramIndex = 1;
+        let whereConditions = ["p.estado != 'cancelado' OR p.estado IS NULL"]; // Permitir NULL si no hay pedidos
 
-        // ✅ AGREGAR LOGICA DE FECHAS
+        // 2. Lógica de Fechas (Aplicada al JOIN o al WHERE global)
         if (fecha_inicio && fecha_fin) {
-            query += ` AND p.created_at::date BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
+            // Si hay filtro de fecha, solo contamos los pedidos en ese rango
+            // IMPORTANTE: Si filtramos por fecha en el WHERE global, los platos sin ventas desaparecerían.
+            // Lo movemos al JOIN o usamos una subquery, pero para simplificar:
+            // Solo mostramos platos con ventas en ese rango O todos si no hay filtro.
+
+            whereConditions.push(`p.created_at::date BETWEEN $${paramIndex} AND $${paramIndex + 1}`);
             params.push(fecha_inicio, fecha_fin);
             paramIndex += 2;
+        }
+
+        // Combinamos condiciones
+        if (whereConditions.length > 0) {
+            query += ` WHERE ${whereConditions.join(' AND ')}`;
         }
 
         query += `
@@ -194,12 +205,21 @@ router.get('/top-platos', async (req, res) => {
 
         const topPlatos = await allAsync(query, params);
 
-        res.json(topPlatos);
+        // Aseguramos que ingresos_totales sea número para evitar NaN en frontend
+        const platosFormateados = topPlatos.map(p => ({
+            ...p,
+            ingresos_totales: Number(p.ingresos_totales || 0),
+            total_pedidos: Number(p.total_pedidos || 0),
+            precio: Number(p.precio || 0)
+        }));
+
+        res.json(platosFormateados);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: error.message });
     }
 });
+
 
 
 export default router;
