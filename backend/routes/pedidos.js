@@ -543,4 +543,334 @@ router.get('/:id/status-publico', async (req, res) => {
 });
 
 
+// ============= EDICIÓN DE PEDIDOS =============
+
+// POST /api/pedidos/:id/items - Agregar items a pedido existente
+router.post('/:id/items', async (req, res) => {
+    try {
+        const pedidoId = req.params.id;
+        const { items } = req.body;
+
+        if (!items || items.length === 0) {
+            return res.status(400).json({ error: 'Se requieren items para agregar' });
+        }
+
+        // Verificar que el pedido existe y no está en estado final
+        const pedido = await getAsync('SELECT * FROM pedidos WHERE id = $1', [pedidoId]);
+        if (!pedido) {
+            return res.status(404).json({ error: 'Pedido no encontrado' });
+        }
+
+        if (['pagado', 'cancelado'].includes(pedido.estado)) {
+            return res.status(400).json({ error: 'No se puede editar un pedido pagado o cancelado' });
+        }
+
+        let totalAdicional = 0;
+        const nuevosItems = [];
+
+        for (const item of items) {
+            const menuItemData = await getAsync(
+                'SELECT id, nombre, es_directo, usa_inventario, stock_actual, stock_minimo, estado_inventario FROM menu_items WHERE id = $1',
+                [item.menu_item_id]
+            );
+
+            if (!menuItemData) {
+                return res.status(400).json({ error: `Item de menú ${item.menu_item_id} no encontrado` });
+            }
+
+            // Verificar inventario
+            if (menuItemData.usa_inventario && menuItemData.stock_actual < item.cantidad) {
+                return res.status(400).json({
+                    error: `Stock insuficiente para ${menuItemData.nombre}. Disponible: ${menuItemData.stock_actual}`
+                });
+            }
+
+            const estadoInicial = menuItemData.es_directo ? 'listo' : 'pendiente';
+
+            // Crear items individuales (como en la creación original)
+            for (let i = 0; i < item.cantidad; i++) {
+                const item_id = uuidv4();
+
+                if (menuItemData.es_directo) {
+                    await runAsync(
+                        `INSERT INTO pedido_items(id, pedido_id, menu_item_id, cantidad, precio_unitario, notas, estado, completed_at) 
+                         VALUES($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)`,
+                        [item_id, pedidoId, item.menu_item_id, 1, item.precio_unitario, item.notas || null, 'listo']
+                    );
+
+                    req.app.get('io').emit('item_ready', {
+                        item_id: item_id,
+                        pedido_id: pedidoId,
+                        mesa_numero: pedido.mesa_numero,
+                        item_nombre: menuItemData.nombre,
+                        mesero_id: pedido.usuario_mesero_id,
+                        cantidad: 1,
+                        completed_at: new Date().toISOString(),
+                        tiempoDesdeReady: 0
+                    });
+                } else {
+                    await runAsync(
+                        `INSERT INTO pedido_items(id, pedido_id, menu_item_id, cantidad, precio_unitario, notas, estado) 
+                         VALUES($1, $2, $3, $4, $5, $6, $7)`,
+                        [item_id, pedidoId, item.menu_item_id, 1, item.precio_unitario, item.notas || null, 'pendiente']
+                    );
+                }
+
+                nuevosItems.push({
+                    id: item_id,
+                    nombre: menuItemData.nombre,
+                    cantidad: 1,
+                    precio_unitario: item.precio_unitario,
+                    estado: estadoInicial
+                });
+            }
+
+            totalAdicional += item.cantidad * item.precio_unitario;
+
+            // Actualizar inventario si aplica
+            if (menuItemData.usa_inventario) {
+                const nuevoStock = (menuItemData.stock_actual || 0) - item.cantidad;
+                let nuevoEstado = menuItemData.estado_inventario;
+
+                if (nuevoStock <= 0) {
+                    nuevoEstado = 'no_disponible';
+                } else if (nuevoStock <= menuItemData.stock_minimo) {
+                    nuevoEstado = 'poco_stock';
+                }
+
+                await runAsync(`
+                    UPDATE menu_items 
+                    SET stock_actual = $1, estado_inventario = $2
+                    WHERE id = $3
+                `, [Math.max(0, nuevoStock), nuevoEstado, item.menu_item_id]);
+            }
+        }
+
+        // Actualizar total del pedido
+        const nuevoTotal = parseFloat(pedido.total) + totalAdicional;
+
+        // Si el pedido estaba en estado final (servido/listo), volver a en_cocina
+        // para que los nuevos items aparezcan en los paneles activos
+        let nuevoEstadoPedido = pedido.estado;
+        if (['servido', 'listo', 'listo_pagar'].includes(pedido.estado)) {
+            nuevoEstadoPedido = 'en_cocina';
+            await runAsync('UPDATE pedidos SET total = $1, estado = $2 WHERE id = $3',
+                [nuevoTotal, nuevoEstadoPedido, pedidoId]);
+            console.log(`📋 Pedido ${pedidoId}: Estado cambiado de "${pedido.estado}" a "en_cocina" por nuevos items`);
+        } else {
+            await runAsync('UPDATE pedidos SET total = $1 WHERE id = $2', [nuevoTotal, pedidoId]);
+        }
+
+        // Emitir evento de pedido editado
+        req.app.get('io').emit('pedido_editado', {
+            id: pedidoId,
+            accion: 'items_agregados',
+            items: nuevosItems,
+            nuevoTotal: nuevoTotal,
+            nuevoEstado: nuevoEstadoPedido
+        });
+
+        // También emitir nuevo_pedido para que cocina vea los nuevos items
+        req.app.get('io').emit('pedido_actualizado', {
+            id: pedidoId,
+            estado: nuevoEstadoPedido
+        });
+
+        res.json({
+            message: '✓ Items agregados al pedido',
+            items: nuevosItems,
+            nuevoTotal: nuevoTotal
+        });
+
+    } catch (error) {
+        console.error('Error agregando items:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// DELETE /api/pedidos/:id/items/:itemId - Eliminar item del pedido
+router.delete('/:id/items/:itemId', async (req, res) => {
+    try {
+        const { id: pedidoId, itemId } = req.params;
+        const { confirmar } = req.query;
+
+        // Obtener el item con información del menú
+        const item = await getAsync(`
+            SELECT pi.*, mi.nombre, mi.usa_inventario, mi.stock_actual, mi.stock_minimo
+            FROM pedido_items pi
+            JOIN menu_items mi ON pi.menu_item_id = mi.id
+            WHERE pi.id = $1 AND pi.pedido_id = $2
+        `, [itemId, pedidoId]);
+
+        if (!item) {
+            return res.status(404).json({ error: 'Item no encontrado en este pedido' });
+        }
+
+        // Validar estado del item
+        if (item.estado === 'listo') {
+            return res.status(400).json({
+                error: 'No se puede eliminar un item que ya está listo. El plato ya fue preparado.',
+                estado: item.estado
+            });
+        }
+
+        if (item.estado === 'servido') {
+            return res.status(400).json({
+                error: 'No se puede eliminar un item que ya fue servido.',
+                estado: item.estado
+            });
+        }
+
+        if (item.estado === 'en_preparacion' && confirmar !== 'true') {
+            return res.status(409).json({
+                error: 'Este item ya está en preparación. Eliminarlo causará desperdicio.',
+                requiereConfirmacion: true,
+                estado: item.estado,
+                mensaje: `¿Estás seguro de eliminar "${item.nombre}"? Ya está siendo preparado.`
+            });
+        }
+
+        // Eliminar el item
+        await runAsync('DELETE FROM pedido_items WHERE id = $1', [itemId]);
+
+        // Devolver stock si usa inventario y está pendiente (no en_preparacion porque ya usó ingredientes)
+        if (item.usa_inventario && item.estado === 'pendiente') {
+            const nuevoStock = (item.stock_actual || 0) + item.cantidad;
+            let nuevoEstado = 'disponible';
+            if (nuevoStock <= item.stock_minimo) {
+                nuevoEstado = 'poco_stock';
+            }
+
+            await runAsync(`
+                UPDATE menu_items 
+                SET stock_actual = $1, estado_inventario = $2
+                WHERE id = $3
+            `, [nuevoStock, nuevoEstado, item.menu_item_id]);
+        }
+
+        // Recalcular total del pedido
+        const result = await getAsync(`
+            SELECT COALESCE(SUM(cantidad * precio_unitario), 0) as nuevo_total
+            FROM pedido_items WHERE pedido_id = $1
+        `, [pedidoId]);
+
+        const nuevoTotal = parseFloat(result.nuevo_total);
+        await runAsync('UPDATE pedidos SET total = $1 WHERE id = $2', [nuevoTotal, pedidoId]);
+
+        // Emitir eventos
+        req.app.get('io').emit('pedido_editado', {
+            id: pedidoId,
+            accion: 'item_eliminado',
+            itemId: itemId,
+            itemNombre: item.nombre,
+            nuevoTotal: nuevoTotal
+        });
+
+        req.app.get('io').emit('pedido_actualizado', {
+            id: pedidoId,
+            estado: 'en_cocina' // Para que cocina recargue
+        });
+
+        res.json({
+            message: `✓ Item "${item.nombre}" eliminado del pedido`,
+            nuevoTotal: nuevoTotal
+        });
+
+    } catch (error) {
+        console.error('Error eliminando item:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// PUT /api/pedidos/:id/items/:itemId/cantidad - Modificar cantidad de un item
+router.put('/:id/items/:itemId/cantidad', async (req, res) => {
+    try {
+        const { id: pedidoId, itemId } = req.params;
+        const { cantidad: nuevaCantidad } = req.body;
+
+        if (!nuevaCantidad || nuevaCantidad < 1) {
+            return res.status(400).json({ error: 'La cantidad debe ser al menos 1' });
+        }
+
+        // Obtener el item
+        const item = await getAsync(`
+            SELECT pi.*, mi.nombre, mi.usa_inventario, mi.stock_actual, mi.stock_minimo
+            FROM pedido_items pi
+            JOIN menu_items mi ON pi.menu_item_id = mi.id
+            WHERE pi.id = $1 AND pi.pedido_id = $2
+        `, [itemId, pedidoId]);
+
+        if (!item) {
+            return res.status(404).json({ error: 'Item no encontrado' });
+        }
+
+        // Solo permitir modificar items pendientes
+        if (item.estado !== 'pendiente') {
+            return res.status(400).json({
+                error: `No se puede modificar la cantidad de un item en estado "${item.estado}"`,
+                estado: item.estado
+            });
+        }
+
+        const diferenciaCantidad = nuevaCantidad - item.cantidad;
+
+        // Verificar inventario si aumentamos cantidad
+        if (item.usa_inventario && diferenciaCantidad > 0) {
+            if (item.stock_actual < diferenciaCantidad) {
+                return res.status(400).json({
+                    error: `Stock insuficiente. Disponible: ${item.stock_actual}`
+                });
+            }
+        }
+
+        // Actualizar cantidad
+        await runAsync('UPDATE pedido_items SET cantidad = $1 WHERE id = $2', [nuevaCantidad, itemId]);
+
+        // Actualizar inventario si aplica
+        if (item.usa_inventario && diferenciaCantidad !== 0) {
+            const nuevoStock = (item.stock_actual || 0) - diferenciaCantidad;
+            let nuevoEstado = 'disponible';
+
+            if (nuevoStock <= 0) {
+                nuevoEstado = 'no_disponible';
+            } else if (nuevoStock <= item.stock_minimo) {
+                nuevoEstado = 'poco_stock';
+            }
+
+            await runAsync(`
+                UPDATE menu_items 
+                SET stock_actual = $1, estado_inventario = $2
+                WHERE id = $3
+            `, [Math.max(0, nuevoStock), nuevoEstado, item.menu_item_id]);
+        }
+
+        // Recalcular total
+        const result = await getAsync(`
+            SELECT COALESCE(SUM(cantidad * precio_unitario), 0) as nuevo_total
+            FROM pedido_items WHERE pedido_id = $1
+        `, [pedidoId]);
+
+        const nuevoTotal = parseFloat(result.nuevo_total);
+        await runAsync('UPDATE pedidos SET total = $1 WHERE id = $2', [nuevoTotal, pedidoId]);
+
+        // Emitir eventos
+        req.app.get('io').emit('pedido_editado', {
+            id: pedidoId,
+            accion: 'cantidad_modificada',
+            itemId: itemId,
+            nuevaCantidad: nuevaCantidad,
+            nuevoTotal: nuevoTotal
+        });
+
+        res.json({
+            message: `✓ Cantidad actualizada a ${nuevaCantidad}`,
+            nuevoTotal: nuevoTotal
+        });
+
+    } catch (error) {
+        console.error('Error modificando cantidad:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 export default router;

@@ -114,6 +114,19 @@ export default {
     return api.put(`/pedidos/items/${id}/serve`);
   },
 
+  // ============= EDICIÓN DE PEDIDOS =============
+  agregarItemsAPedido(pedidoId, items) {
+    return api.post(`/pedidos/${pedidoId}/items`, { items });
+  },
+
+  eliminarItemDePedido(pedidoId, itemId, confirmar = false) {
+    return api.delete(`/pedidos/${pedidoId}/items/${itemId}`, { params: { confirmar } });
+  },
+
+  modificarCantidadItem(pedidoId, itemId, cantidad) {
+    return api.put(`/pedidos/${pedidoId}/items/${itemId}/cantidad`, { cantidad });
+  },
+
   // ============= PAGOS =============
   registrarPago(pedido_id, usuario_facturero_id, monto, metodo_pago) {
     return api.post('/transacciones', { pedido_id, usuario_facturero_id, monto, metodo_pago });

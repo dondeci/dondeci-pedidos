@@ -183,9 +183,18 @@
                 <span>{{ pedido.items_count }} items</span>
                 <span>${{ pedido.total }}</span>
               </div>
-              <button @click="mostrarQRCliente(pedido.id)" class="btn btn-secondary btn-small" style="margin-top:8px; width:100%;">
-                📱 Ver QR Cliente
-              </button>
+              <div class="pedido-acciones">
+                <button 
+                  v-if="pedido.estado !== 'listo_pagar'"
+                  @click="abrirEditorPedido(pedido)" 
+                  class="btn btn-primary btn-small"
+                >
+                  ✏️ Editar
+                </button>
+                <button @click="mostrarQRCliente(pedido.id)" class="btn btn-secondary btn-small">
+                  📱 QR
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -194,6 +203,83 @@
         <h3>📱 Escanea para ver el estado</h3>
         <GeneradorQR ref="qrComponent" :valor="urlParaQR" />
         <button @click="cerrarQR" class="btn btn-secondary" style="margin-top:16px;">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- Modal de Edición de Pedido -->
+  <div v-if="mostrarEditorPedido" class="qr-modal-overlay" @click.self="cerrarEditorPedido">
+    <div class="editor-pedido-modal">
+      <div class="editor-header">
+        <h3>✏️ Editar Pedido - Mesa {{ pedidoEditando?.mesa_numero }}</h3>
+        <button @click="cerrarEditorPedido" class="btn-cerrar">✕</button>
+      </div>
+
+      <!-- Items actuales del pedido -->
+      <div class="editor-seccion">
+        <h4>Items del Pedido</h4>
+        <div v-if="!pedidoEditando?.items?.length" class="empty-state">Sin items</div>
+        <div v-else class="items-edicion-list">
+          <div v-for="item in pedidoEditando.items" :key="item.id" class="item-edicion">
+            <div class="item-edicion-info">
+              <span class="item-nombre">{{ item.nombre }}</span>
+              <span :class="['estado-badge-small', `estado-${item.estado}`]">{{ item.estado }}</span>
+            </div>
+            <div class="item-edicion-acciones">
+              <span class="item-precio">${{ item.precio_unitario }}</span>
+              <button 
+                v-if="item.estado === 'pendiente' || item.estado === 'en_preparacion'"
+                @click="eliminarItemDelPedido(item)" 
+                class="btn-eliminar-item"
+                :title="item.estado === 'en_preparacion' ? 'En preparación - se pedirá confirmación' : 'Eliminar item'"
+              >
+                🗑️
+              </button>
+              <span v-else class="item-no-editable">🔒</span>
+            </div>
+          </div>
+        </div>
+        <div class="editor-total">
+          <strong>Total: ${{ pedidoEditando?.total || 0 }}</strong>
+        </div>
+      </div>
+
+      <!-- Agregar nuevos items -->
+      <div class="editor-seccion">
+        <h4>➕ Agregar Items</h4>
+        <div class="categorias-tabs mini">
+          <button
+            v-for="cat in categorias"
+            :key="cat"
+            @click="categoriaEdicion = cat"
+            :class="['tab', { 'tab-active': categoriaEdicion === cat }]"
+          >
+            {{ cat }}
+          </button>
+        </div>
+        <div class="items-agregar-grid">
+          <div
+            v-for="menuItem in itemsPorCategoriaEdicion"
+            :key="menuItem.id"
+            :class="['item-agregar', { 'item-disabled': menuItem.estado_inventario === 'no_disponible' }]"
+            @click="agregarItemAEdicion(menuItem)"
+          >
+            <span class="nombre">{{ menuItem.nombre }}</span>
+            <span class="precio">${{ menuItem.precio }}</span>
+          </div>
+        </div>
+
+        <!-- Items pendientes de agregar -->
+        <div v-if="itemsParaAgregar.length > 0" class="items-pendientes-agregar">
+          <h5>Items a agregar:</h5>
+          <div v-for="(item, idx) in itemsParaAgregar" :key="idx" class="item-pendiente">
+            <span>{{ item.cantidad }}x {{ item.nombre }} - ${{ (item.cantidad * item.precio_unitario).toFixed(2) }}</span>
+            <button @click="quitarItemPendiente(idx)" class="btn-quitar">✕</button>
+          </div>
+          <button @click="confirmarAgregarItems" class="btn btn-primary" style="width:100%; margin-top:8px;">
+            ✅ Confirmar nuevos items
+          </button>
+        </div>
+      </div>
     </div>
   </div>
       </template>
@@ -225,6 +311,18 @@ const mostrarQR = ref(false);
 const urlParaQR = ref('');
 const now = ref(Date.now()); // Reactive time for "Listo hace..."
 const router = useRouter(); // 2. Instanciar router
+
+// Variables para edición de pedidos
+const mostrarEditorPedido = ref(false);
+const pedidoEditando = ref(null);
+const itemsParaAgregar = ref([]);
+const categoriaEdicion = ref('');
+
+// Computed para items del menú en el editor
+const itemsPorCategoriaEdicion = computed(() => {
+  if (!categoriaEdicion.value) return [];
+  return pedidoStore.menu.filter(item => item.categoria === categoriaEdicion.value);
+});
 
 const abrirQRMesas = () => {
   // Opción A: Si usas Vue Router con nombre
@@ -465,6 +563,113 @@ const marcarListoPagar = async (pedidoId) => {
   }
 };
 
+// ============= FUNCIONES DE EDICIÓN DE PEDIDOS =============
+
+const abrirEditorPedido = async (pedido) => {
+  try {
+    // Cargar detalles completos del pedido
+    const response = await api.getPedido(pedido.id);
+    pedidoEditando.value = response.data;
+    itemsParaAgregar.value = [];
+    
+    // Seleccionar primera categoría
+    if (categorias.value.length > 0) {
+      categoriaEdicion.value = categorias.value[0];
+    }
+    
+    mostrarEditorPedido.value = true;
+  } catch (err) {
+    console.error('Error cargando pedido:', err);
+    alert('❌ Error al cargar el pedido');
+  }
+};
+
+const cerrarEditorPedido = () => {
+  mostrarEditorPedido.value = false;
+  pedidoEditando.value = null;
+  itemsParaAgregar.value = [];
+};
+
+const agregarItemAEdicion = (menuItem) => {
+  if (menuItem.estado_inventario === 'no_disponible') {
+    alert('❌ Este item no está disponible');
+    return;
+  }
+  
+  const existe = itemsParaAgregar.value.find(i => i.menu_item_id === menuItem.id);
+  
+  if (existe) {
+    existe.cantidad++;
+  } else {
+    itemsParaAgregar.value.push({
+      menu_item_id: menuItem.id,
+      nombre: menuItem.nombre,
+      precio_unitario: menuItem.precio,
+      cantidad: 1
+    });
+  }
+};
+
+const quitarItemPendiente = (idx) => {
+  const item = itemsParaAgregar.value[idx];
+  if (item.cantidad > 1) {
+    item.cantidad--;
+  } else {
+    itemsParaAgregar.value.splice(idx, 1);
+  }
+};
+
+const confirmarAgregarItems = async () => {
+  if (itemsParaAgregar.value.length === 0) return;
+  
+  try {
+    await api.agregarItemsAPedido(pedidoEditando.value.id, itemsParaAgregar.value);
+    
+    // Recargar pedido y datos
+    await pedidoStore.cargarPedidosActivos();
+    const response = await api.getPedido(pedidoEditando.value.id);
+    pedidoEditando.value = response.data;
+    itemsParaAgregar.value = [];
+    
+    alert('✅ Items agregados al pedido');
+  } catch (err) {
+    console.error('Error agregando items:', err);
+    alert('❌ Error: ' + (err.response?.data?.error || 'No se pudieron agregar los items'));
+  }
+};
+
+const eliminarItemDelPedido = async (item) => {
+  const esEnPreparacion = item.estado === 'en_preparacion';
+  
+  if (esEnPreparacion) {
+    const confirmado = confirm(
+      `⚠️ "${item.nombre}" ya está en preparación.\n\n` +
+      `Eliminarlo causará desperdicio de ingredientes.\n\n` +
+      `¿Estás seguro de eliminarlo?`
+    );
+    if (!confirmado) return;
+  }
+  
+  try {
+    await api.eliminarItemDePedido(
+      pedidoEditando.value.id, 
+      item.id, 
+      esEnPreparacion
+    );
+    
+    // Recargar pedido y datos
+    await pedidoStore.cargarPedidosActivos();
+    const response = await api.getPedido(pedidoEditando.value.id);
+    pedidoEditando.value = response.data;
+    
+    alert(`✅ "${item.nombre}" eliminado del pedido`);
+  } catch (err) {
+    console.error('Error eliminando item:', err);
+    const errorMsg = err.response?.data?.error || 'No se pudo eliminar el item';
+    alert('❌ ' + errorMsg);
+  }
+};
+
 const calcularTiempoEspera = (createdAt) => {
   const creado = new Date(createdAt);
   const diffMs = now.value - creado;
@@ -576,3 +781,4 @@ onUnmounted(() => {
 </script>
 
 <style src="../assets/styles/MeseroPanel.css" scoped></style>
+<style src="../assets/styles/MeseroEdicion.css" scoped></style>
