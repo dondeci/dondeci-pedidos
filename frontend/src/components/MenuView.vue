@@ -35,8 +35,10 @@
               </div>
               <div class="item-price-block">
                 <span class="price">${{ item.precio.toLocaleString() }}</span>
-                <span v-if="!item.disponible" class="badge-agotado">Agotado</span>
-                <span v-else-if="item.stock <= 5 && item.stock > 0" class="badge-low-stock">¡Quedan {{ item.stock }}!</span>
+                <!-- Agotado -->
+                <span v-if="item.estado_inventario === 'no_disponible'" class="badge-agotado">
+                  Agotado
+                </span>
               </div>
             </div>
           </div>
