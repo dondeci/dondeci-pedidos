@@ -1,44 +1,108 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { runAsync } from '../config/db.js';
+import { getAsync, runAsync } from '../config/db.js';
 
 const router = express.Router();
 
-// POST /api/transacciones - Registrar pago
+// POST /api/transacciones - Registrar pago (parcial o completo)
 router.post('/', async (req, res) => {
-    try {
-        const { pedido_id, usuario_facturero_id, monto, metodo_pago } = req.body;
+  try {
+    const { pedido_id, usuario_facturero_id, monto, metodo_pago } = req.body;
 
-        if (!pedido_id || !monto || !metodo_pago) {
-            return res.status(400).json({ error: 'Pedido, monto y método de pago requeridos' });
-        }
-
-        const transaccion_id = uuidv4();
-
-        await runAsync(
-            'INSERT INTO transacciones(id, pedido_id, usuario_facturero_id, monto, metodo_pago, completada) VALUES($1, $2, $3, $4, $5, TRUE)',
-            [transaccion_id, pedido_id, usuario_facturero_id, monto, metodo_pago]
-        );
-
-        await runAsync(
-            'UPDATE pedidos SET estado = $1, completed_at = CURRENT_TIMESTAMP WHERE id = $2',
-            ['pagado', pedido_id]
-        );
-
-        req.app.get('io').emit('pedido_pagado', {
-            pedido_id,
-            estado: 'pagado',
-            monto,
-            metodo_pago
-        });
-
-        res.json({
-            id: transaccion_id,
-            message: '✓ Pago registrado'
-        });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+    if (!pedido_id || !monto || !metodo_pago) {
+      return res.status(400).json({ error: 'Pedido, monto y método de pago requeridos' });
     }
+
+    // 1) Verificar que el pedido existe
+    const pedido = await getAsync(
+      'SELECT id, total, estado FROM pedidos WHERE id = $1',
+      [pedido_id]
+    );
+
+    if (!pedido) {
+      return res.status(404).json({ error: 'Pedido no encontrado' });
+    }
+
+    const totalPedido = parseFloat(pedido.total);
+
+    // 2) Insertar la transacción (un pago más, parcial o total)
+    const transaccion_id = uuidv4();
+
+    await runAsync(
+      `INSERT INTO transacciones
+         (id, pedido_id, usuario_facturero_id, monto, metodo_pago, completada, created_at)
+       VALUES ($1, $2, $3, $4, $5, TRUE, CURRENT_TIMESTAMP)`,
+      [transaccion_id, pedido_id, usuario_facturero_id, monto, metodo_pago]
+    );
+
+    // 3) Calcular cuánto se ha pagado en total para este pedido
+    const suma = await getAsync(
+      `SELECT COALESCE(SUM(monto), 0) AS total_pagado
+       FROM transacciones
+       WHERE pedido_id = $1`,
+       [pedido_id]
+    );
+
+    const totalPagado = parseFloat(suma.total_pagado);
+    const pendiente = Math.max(totalPedido - totalPagado, 0);
+
+    let nuevoEstado = pedido.estado;
+
+    // 4) Actualizar estado del pedido según lo pagado
+    if (totalPagado >= totalPedido) {
+      // Ya se cubrió todo el total
+      nuevoEstado = 'pagado';
+      await runAsync(
+        `UPDATE pedidos
+         SET estado = 'pagado', completed_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [pedido_id]
+      );
+
+      req.app.get('io').emit('pedido_actualizado', {
+        id: pedido_id,
+        estado: 'pagado'
+      });
+    } else {
+      // Pagado parcialmente: puedes marcar como "en_caja" o dejar el estado actual
+      if (pedido.estado !== 'pagado' && pedido.estado !== 'cancelado') {
+        nuevoEstado = 'en_caja';
+        await runAsync(
+          `UPDATE pedidos
+           SET estado = 'en_caja'
+           WHERE id = $1`,
+          [pedido_id]
+        );
+
+        req.app.get('io').emit('pedido_actualizado', {
+          id: pedido_id,
+          estado: 'en_caja'
+        });
+      }
+    }
+
+    // 5) Notificar pago registrado (opcional, por si tienes listeners específicos)
+    req.app.get('io').emit('pedido_pagado', {
+      pedido_id,
+      estado: nuevoEstado,
+      monto,
+      metodo_pago,
+      total_pagado: totalPagado,
+      pendiente
+    });
+
+    res.json({
+      id: transaccion_id,
+      message: '✓ Pago registrado',
+      total_pagado: totalPagado,
+      total_pedido: totalPedido,
+      pendiente,
+      nuevo_estado: nuevoEstado
+    });
+  } catch (error) {
+    console.error('Error registrando pago:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 export default router;
