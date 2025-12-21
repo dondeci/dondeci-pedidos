@@ -275,11 +275,15 @@ const actualizarPedidos = async () => {
   }
 };
 
+const saldoPendiente = ref(null);
+
 const seleccionarPedido = (pedido) => {
   pedidoSeleccionado.value = pedido;
   metodoSeleccionado.value = '';
   montoRecibido.value = null;
+  saldoPendiente.value = pedido.total; // al inicio el pendiente es el total
 };
+
 
 const cancelarPago = () => {
   pedidoSeleccionado.value = null;
@@ -439,7 +443,6 @@ const pedirCuenta = async (pedido) => {
 const procesarPago = async () => {
   if (!pedidoSeleccionado.value || !metodoSeleccionado.value) return;
 
-  // Monto que se va a registrar en esta transacción
   let monto = 0;
 
   if (metodoSeleccionado.value === 'efectivo') {
@@ -449,9 +452,8 @@ const procesarPago = async () => {
     }
     monto = Number(montoRecibido.value);
   } else {
-    // Por ahora: para Nequi / tarjeta / otro_digital registras el total pendiente
-    // Más abajo calculamos pendiente a partir de pagos previos (cuando expongas pagos)
-    monto = Number(pedidoSeleccionado.value.total);
+    // 👉 aquí usamos el saldo pendiente local
+    monto = Number(saldoPendiente.value ?? pedidoSeleccionado.value.total);
   }
 
   try {
@@ -462,10 +464,9 @@ const procesarPago = async () => {
       metodoSeleccionado.value
     );
 
-    // res.data trae: total_pagado, total_pedido, pendiente, nuevo_estado
     const { total_pagado, total_pedido, pendiente } = res.data;
+    saldoPendiente.value = pendiente; // 🔁 actualizar saldo local
 
-    // Preparar ticket con el monto que se pagó en ESTA transacción
     prepararTicket(
       { ...pedidoSeleccionado.value, total: monto },
       'pago',
@@ -481,14 +482,20 @@ const procesarPago = async () => {
 
     imprimirContenido(ticketData.value);
 
-    cancelarPago();
-    await actualizarPedidos();
+    if (pendiente <= 0) {
+      cancelarPago();
+      await actualizarPedidos();
+    } else {
+      // Sigue habiendo saldo, puedes dejar el formulario abierto para el siguiente método
+      metodoSeleccionado.value = '';
+      montoRecibido.value = null;
+    }
   } catch (err) {
     console.error(err);
     alert('❌ Error al registrar pago');
   }
 };
-;
+
 
 const verDetallesPago = async (pedidoId) => {
   try {
