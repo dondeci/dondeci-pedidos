@@ -43,12 +43,17 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
 import api from '../api';
 
-const route = useRoute();
 const pedido = ref(null);
 const items = ref([]);
+const loading = ref(true);
+const error = ref(null);
+
+// ✅ IGUAL que PedidoStatus: detectar ruta manualmente
+const path = window.location.pathname;
+const pathParts = path.split('/');
+const cuentaId = pathParts[2]; // El ID después de /cuenta/
 
 const itemsAgrupados = computed(() => {
   const grupos = {};
@@ -66,16 +71,31 @@ const itemsAgrupados = computed(() => {
   return Object.values(grupos);
 });
 
-onMounted(async () => {
-  const pedidoId = route.params.id;
-
+const cargarPedido = async () => {
+  loading.value = true;
+  error.value = null;
+  
+  console.log('🎯 Cuenta ID detectado:', cuentaId); // ✅ DEBUG
+  
   try {
-    // ✅ Usar el endpoint público, igual que PedidoStatus
-    const res = await api.getPedidoStatusPublico(pedidoId);
-    pedido.value = res.data.pedido;
-    items.value = res.data.items || [];
+    const response = await api.getPedidoStatusPublico(cuentaId);
+    pedido.value = response.data.pedido;
+    items.value = response.data.items || [];
+    console.log('✅ Pedido cargado:', pedido.value.id); // ✅ DEBUG
   } catch (err) {
-    console.error('Error cargando pedido para cuenta:', err);
+    console.error('❌ Error cargando cuenta:', err);
+    error.value = 'No pudimos cargar la cuenta. Verifica que el ID sea correcto.';
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  if (cuentaId) {
+    cargarPedido();
+  } else {
+    error.value = 'ID de cuenta no válido';
+    loading.value = false;
   }
 });
 </script>
