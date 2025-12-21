@@ -108,7 +108,7 @@
       </div>
 
       <!-- NUEVO: Botón Ver cuenta (cuando haya pedido) -->
-      <div v-if="pedido" class="pedir-cuenta-section" style="margin-top: 12px;">
+      <div v-if="pedido.estado === 'servido'" class="pedir-cuenta-section" style="margin-top: 12px;">
         <button 
           @click="verCuenta"
           class="btn-pedir-cuenta"
