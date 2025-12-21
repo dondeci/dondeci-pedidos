@@ -4,6 +4,7 @@ import MenuView from './components/MenuView.vue';
 import PedidoStatus from './components/PedidoStatus.vue';
 import MesasQR from './components/MesasQR.vue';
 import CuentaView from './views/CuentaView.vue';
+
 const routes = [
   { path: '/', component: HomeView },
   { path: '/menu', component: MenuView },
@@ -11,8 +12,6 @@ const routes = [
   { path: '/mesa/:id', component: PedidoStatus },
   { path: '/mesas-qr', name: 'mesas-qr', component: MesasQR },
   { path: '/cuenta/:id', name: 'cuenta', component: CuentaView },
-}
-
 ];
 
 const router = createRouter({
