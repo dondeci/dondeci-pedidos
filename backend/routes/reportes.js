@@ -8,18 +8,26 @@ router.get('/ventas-hoy', async (req, res) => {
     try {
         const { fecha_inicio, fecha_fin } = req.query;
 
-        // Si no hay filtros, usar el día actual
-        let whereClause = 'WHERE DATE(created_at) = CURRENT_DATE';
+        // Obtener zona horaria de config o default
+        const TIMEZONE = process.env.TIMEZONE || 'America/Bogota';
+
+        // Helper para convertir UTC a Zona Horaria LOCAL en SQL
+        // AT TIME ZONE 'UTC' -> lo interpreta como UTC
+        // AT TIME ZONE TIMEZONE -> lo convierte a la hora local
+        const localDate = `(created_at AT TIME ZONE 'UTC' AT TIME ZONE '${TIMEZONE}')::date`;
+
+        // Si no hay filtros, usar el día actual LOCAL
+        let whereClause = `WHERE ${localDate} = CURRENT_DATE`;
         let params = [];
 
         if (fecha_inicio && fecha_fin) {
-            whereClause = 'WHERE DATE(created_at) BETWEEN $1 AND $2';
+            whereClause = `WHERE ${localDate} BETWEEN $1 AND $2`;
             params = [fecha_inicio, fecha_fin];
         } else if (fecha_inicio) {
-            whereClause = 'WHERE DATE(created_at) >= $1';
+            whereClause = `WHERE ${localDate} >= $1`;
             params = [fecha_inicio];
         } else if (fecha_fin) {
-            whereClause = 'WHERE DATE(created_at) <= $1';
+            whereClause = `WHERE ${localDate} <= $1`;
             params = [fecha_fin];
         }
 
@@ -58,18 +66,21 @@ router.get('/pedidos-hoy', async (req, res) => {
     try {
         const { fecha_inicio, fecha_fin } = req.query;
 
-        // Si no hay filtros, usar el día actual
-        let whereClause = 'WHERE DATE(p.created_at) = CURRENT_DATE';
+        const TIMEZONE = process.env.TIMEZONE || 'America/Bogota';
+        const localDate = `(p.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${TIMEZONE}')::date`;
+
+        // Si no hay filtros, usar el día actual en la zona horaria correcta
+        let whereClause = `WHERE ${localDate} = CURRENT_DATE`;
         let params = [];
 
         if (fecha_inicio && fecha_fin) {
-            whereClause = 'WHERE DATE(p.created_at) BETWEEN $1 AND $2';
+            whereClause = `WHERE ${localDate} BETWEEN $1 AND $2`;
             params = [fecha_inicio, fecha_fin];
         } else if (fecha_inicio) {
-            whereClause = 'WHERE DATE(p.created_at) >= $1';
+            whereClause = `WHERE ${localDate} >= $1`;
             params = [fecha_inicio];
         } else if (fecha_fin) {
-            whereClause = 'WHERE DATE(p.created_at) <= $1';
+            whereClause = `WHERE ${localDate} <= $1`;
             params = [fecha_fin];
         }
 
@@ -103,14 +114,16 @@ router.get('/pedidos-hoy', async (req, res) => {
 // GET /api/reportes/historico - Reporte histórico por día
 router.get('/historico', async (req, res) => {
     try {
+        const TIMEZONE = process.env.TIMEZONE || 'America/Bogota';
+
         const ventasPorDiaQuery = `
             SELECT
-                DATE(t.created_at) as fecha,
+                (t.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${TIMEZONE}')::date as fecha,
                 COUNT(*) as cantidad_transacciones,
                 SUM(t.monto) as total_dia
             FROM transacciones t
             WHERE t.completada = TRUE
-            GROUP BY DATE(t.created_at)
+            GROUP BY (t.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${TIMEZONE}')::date
             ORDER BY fecha DESC
             LIMIT 30
         `;
