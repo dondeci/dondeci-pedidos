@@ -66,9 +66,18 @@ async function initDatabase() {
                 usa_inventario BOOLEAN DEFAULT FALSE,
                 stock_actual INTEGER,
                 stock_minimo INTEGER,
-                estado_inventario TEXT DEFAULT 'disponible' CHECK(estado_inventario IN ('disponible', 'poco_stock', 'no_disponible'))
+                estado_inventario TEXT DEFAULT 'disponible' CHECK(estado_inventario IN ('disponible', 'poco_stock', 'no_disponible')),
+                image_url VARCHAR(500) -- ✅ MIGRACIÓN INTEGRADA
             )
         `);
+
+        // 🔄 MIGRACIONES AUTOMÁTICAS: MENU_ITEMS
+        // Asegurar que las columnas existan si la tabla ya fue creada antes
+        await pool.query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS usa_inventario BOOLEAN DEFAULT FALSE`);
+        await pool.query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS stock_actual INTEGER`);
+        await pool.query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS stock_minimo INTEGER`);
+        await pool.query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS estado_inventario TEXT DEFAULT 'disponible' CHECK(estado_inventario IN ('disponible', 'poco_stock', 'no_disponible'))`);
+        await pool.query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS image_url VARCHAR(500)`);
 
         // Crear tabla de mesas
         await pool.query(`
@@ -87,6 +96,9 @@ async function initDatabase() {
                 mesa_numero INTEGER NOT NULL,
                 usuario_mesero_id TEXT,
                 total NUMERIC(10,2) NOT NULL,
+                subtotal NUMERIC(10,2) DEFAULT 0, -- ✅ MIGRACIÓN INTEGRADA
+                propina_monto NUMERIC(10,2) DEFAULT 0, -- ✅ MIGRACIÓN INTEGRADA
+                propina_porcentaje INTEGER DEFAULT 0, -- ✅ MIGRACIÓN INTEGRADA
                 estado TEXT DEFAULT 'nuevo' CHECK(estado IN ('nuevo', 'en_cocina', 'listo', 'servido', 'listo_pagar', 'en_caja', 'pagado', 'cancelado')),
                 notas TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -96,6 +108,11 @@ async function initDatabase() {
                 FOREIGN KEY (usuario_mesero_id) REFERENCES usuarios(id)
             )
         `);
+
+        // 🔄 MIGRACIONES AUTOMÁTICAS: PEDIDOS
+        await pool.query(`ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS subtotal NUMERIC(10,2) DEFAULT 0`);
+        await pool.query(`ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS propina_monto NUMERIC(10,2) DEFAULT 0`);
+        await pool.query(`ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS propina_porcentaje INTEGER DEFAULT 0`);
 
         // Crear tabla de items del pedido
         await pool.query(`
@@ -115,6 +132,12 @@ async function initDatabase() {
                 FOREIGN KEY (menu_item_id) REFERENCES menu_items(id)
             )
         `);
+
+        // 🔄 MIGRACIONES AUTOMÁTICAS: PEDIDO_ITEMS
+        await pool.query(`ALTER TABLE pedido_items ADD COLUMN IF NOT EXISTS started_at TIMESTAMP`);
+        await pool.query(`ALTER TABLE pedido_items ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP`);
+        await pool.query(`ALTER TABLE pedido_items ADD COLUMN IF NOT EXISTS served_at TIMESTAMP`);
+        await pool.query(`ALTER TABLE pedido_items ADD COLUMN IF NOT EXISTS tiempo_real INTEGER`);
 
         // Crear tabla de estadísticas de tiempo
         await pool.query(`
@@ -153,6 +176,20 @@ async function initDatabase() {
                 valor TEXT
             )
         `);
+
+        // 🔄 MIGRACIONES AUTOMÁTICAS: CONFIGURACIÓN INICIAL
+        // Insertar claves por defecto si no existen
+        const defaultConfigs = [
+            { k: 'porcentaje_propina', v: '10' },
+            { k: 'favicon_url', v: '' },
+            { k: 'icon_192_url', v: '' },
+            { k: 'icon_512_url', v: '' },
+            { k: 'apple_touch_icon_url', v: '' }
+        ];
+
+        for (const conf of defaultConfigs) {
+            await pool.query(`INSERT INTO configuracion (clave, valor) VALUES ($1, $2) ON CONFLICT (clave) DO NOTHING`, [conf.k, conf.v]);
+        }
 
         console.log('✓ Tablas inicializadas en Postgres');
     } catch (err) {
