@@ -4,6 +4,16 @@ import App from './App.vue'
 import router from './router' // Importa el router
 import './style.css'
 
+// ✅ Aplicar colores del theme desde variables de entorno
+const themeColor = import.meta.env.VITE_THEME_COLOR || '#667eea';
+const backgroundColor = import.meta.env.VITE_BACKGROUND_COLOR || '#764ba2';
+
+// Aplicar INMEDIATAMENTE antes de montar la app
+document.documentElement.style.setProperty('--theme-color', themeColor);
+document.documentElement.style.setProperty('--background-color', backgroundColor);
+
+console.log('🎨 Theme colors applied:', { themeColor, backgroundColor });
+
 const app = createApp(App)
 
 app.use(createPinia())

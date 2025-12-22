@@ -10,6 +10,33 @@
     min-height: 100vh;
 }
 
+/* ✅ NUEVO: Preview pequeño de imagen */
+.img-preview-small {
+    margin-top: 10px;
+    position: relative;
+    max-width: 200px;
+}
+
+.img-preview-small img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    border: 2px solid #e5e7eb;
+}
+
+.img-preview-small button {
+    margin-top: 5px;
+    font-size: 0.85rem;
+    padding: 4px 8px;
+}
+
+.text-info {
+    color: #3b82f6;
+    font-size: 0.85rem;
+    display: block;
+    margin-top: 5px;
+}
+
 .no-print {
     display: block;
 }

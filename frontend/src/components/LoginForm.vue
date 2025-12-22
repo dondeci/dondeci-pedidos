@@ -2,8 +2,8 @@
   <div class="login-container">
     <div class="login-card">
       <div class="login-header">
-        <h1>🍽️ Restaurante Sierra Nevada</h1>
-        <p>Sistema de Gestión de Pedidos</p>
+        <h1>🍽️ {{ nombreRestaurante }}</h1>
+        <p>{{ subtituloRestaurante }}</p>
       </div>
 
       <form @submit.prevent="handleLogin" class="login-form">
@@ -57,13 +57,34 @@
 <script setup>
 import { ref } from 'vue';
 import { useUsuarioStore } from '../stores/usuarioStore';
+import { useRouter } from 'vue-router';
+import api from '../api'; // ✅ NUEVO
 
 const usuarioStore = useUsuarioStore();
 
 const username = ref('');
 const password = ref('');
-const loading = ref(false);
 const error = ref('');
+const loading = ref(false);
+
+// ✅ NUEVO: Cargar nombre del restaurante
+const nombreRestaurante = ref(import.meta.env.VITE_APP_TITLE || 'Restaurante');
+const subtituloRestaurante = ref(import.meta.env.VITE_APP_DESCRIPTION || 'Sistema de Gestión de Pedidos');
+
+const cargarConfig = async () => {
+  try {
+    const res = await api.getConfig();
+    if (res.data) {
+      nombreRestaurante.value = res.data.nombre || import.meta.env.VITE_APP_TITLE || 'Restaurante';
+      subtituloRestaurante.value = res.data.subtitulo || import.meta.env.VITE_APP_DESCRIPTION || 'Sistema de Gestión de Pedidos';
+    }  
+  } catch (err) {
+    console.error('Error cargando config:', err);
+  }
+};
+
+// Cargar al montar
+cargarConfig();
 
 const handleLogin = async () => {
   error.value = '';

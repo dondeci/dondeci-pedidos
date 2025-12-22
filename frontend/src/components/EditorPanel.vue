@@ -81,6 +81,19 @@
               <textarea v-model="newItem.descripcion" placeholder="Ingredientes, alérgenos..." rows="2"></textarea>
             </div>
             
+            <!-- ✅ NUEVO: Subir imagen del plato -->
+            <div class="form-group">
+              <label>Imagen del Plato</label>
+              <input type="file" @change="subirImagenItem" accept="image/*" />
+              <div v-if="newItem.image_url" class="img-preview-small">
+                <img :src="newItem.image_url" alt="Preview" />
+                <button @click="newItem.image_url = ''" type="button" class="btn-text-danger">
+                  Eliminar
+                </button>
+              </div>
+              <small v-if="subiendoImagen" class="text-info">⏳ Subiendo imagen...</small>
+            </div>
+            
             <div class="options-grid">
               <label class="checkbox-card">
                 <input type="checkbox" v-model="newItem.usa_inventario" />
@@ -131,6 +144,29 @@
                     rows="2"
                     placeholder="Agrega una descripción..." 
                   ></textarea>
+                  
+                  <!-- ✅ NUEVO: Imagen del plato -->
+                  <div style="margin: 8px 0; padding: 8px; background: #f9fafb; border-radius: 6px;">
+                    <label style="font-size: 12px; font-weight: 600; color: #4b5563; display: block; margin-bottom: 4px;">🖼️ Imagen:</label>
+                    <input 
+                      type="file" 
+                      @change="(e) => subirImagenItemExistente(e, item)" 
+                      accept="image/*" 
+                      style="font-size: 11px; width: 100%;"
+                    />
+                    <div v-if="item.image_url" class="img-preview-small" style="margin-top: 8px;">
+                      <img :src="item.image_url" alt="Preview" />
+                      <button 
+                        @click="eliminarImagenItem(item)" 
+                        type="button" 
+                        class="btn-text-danger"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                    <small v-if="itemEditandoImagen === item.id" class="text-info">⏳ Subiendo...</small>
+                  </div>
+
                   <div class="price-time-row">
                     <div class="input-wrapper symbol">
                       <input v-model.number="item.precio" type="number" class="edit-input" @change="actualizarItem(item)" />
@@ -208,6 +244,105 @@
                 <button @click="config.imagenFondoMenu = ''" class="btn-text-danger">Eliminar</button>
              </div>
           </div>
+
+          <!-- ✅ NUEVO: Configuración de Propina -->
+          <div class="form-group" style="margin-top: 24px; border-top: 2px solid #e5e7eb; padding-top: 24px;">
+            <label>💰 Porcentaje de Propina Sugerida (%)</label>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <input
+                v-model.number="porcentajePropina"
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                placeholder="10"
+                style="width: 100px;"
+              />
+              <span style="color: #6b7280;">%</span>
+              <span style="color: #6b7280; font-size: 14px;">
+                (Actualmente: {{ porcentajePropina }}%)
+              </span>
+            </div>
+            <p style="font-size: 13px; color: #6b7280; margin-top: 8px;">
+              El sistema sugerirá este % como propina
+            </p>
+          </div>
+
+          <!-- ✅ NUEVO: Colores del tema -->
+          <div style="margin-top: 24px; border-top: 2px solid #e5e7eb; padding-top: 24px;">
+            <h4 style="margin: 0 0 16px 0; color: #374151; font-size: 16px;">
+              🎨 Colores del Sistema
+            </h4>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Color Primario (Botones, Headers)</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input v-model="config.color_primario" type="color" style="width: 60px; height: 40px; cursor: pointer; border-radius: 6px; border: 1px solid #e5e7eb;" />
+                  <input v-model="config.color_primario" type="text" placeholder="#667eea" style="flex: 1;" />
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label>Color Secundario (Fondos, Acentos)</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input v-model="config.color_secundario" type="color" style="width: 60px; height: 40px; cursor: pointer; border-radius: 6px; border: 1px solid #e5e7eb;" />
+                  <input v-model="config.color_secundario" type="text" placeholder="#764ba2" style="flex: 1;" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ✅ NUEVO: Iconos de la Aplicación -->
+          <div style="margin-top: 24px; border-top: 2px solid #e5e7eb; padding-top: 24px;">
+            <h4 style="margin: 0 0 16px 0; color: #374151; font-size: 16px;">
+              📱 Iconos de la Aplicación
+            </h4>
+            
+            <div class="form-grid">
+              <!-- Favicon -->
+              <div class="form-group">
+                <label>Favicon (32x32)</label>
+                <input type="file" @change="(e) => subirIcono(e, 'favicon_url')" accept="image/*" />
+                <div v-if="config.favicon_url" class="img-preview-small" style="margin-top: 8px;">
+                  <img :src="config.favicon_url" alt="Favicon" style="width: 32px; height: 32px; object-fit: contain;" />
+                  <button @click="config.favicon_url = ''" type="button" class="btn-text-danger">Eliminar</button>
+                </div>
+              </div>
+
+              <!-- PWA 192 -->
+              <div class="form-group">
+                <label>Icono App (192x192)</label>
+                <input type="file" @change="(e) => subirIcono(e, 'icon_192_url')" accept="image/*" />
+                <div v-if="config.icon_192_url" class="img-preview-small" style="margin-top: 8px;">
+                  <img :src="config.icon_192_url" alt="Icon 192" style="width: 48px; height: 48px; object-fit: contain;" />
+                  <button @click="config.icon_192_url = ''" type="button" class="btn-text-danger">Eliminar</button>
+                </div>
+              </div>
+
+              <!-- PWA 512 -->
+              <div class="form-group">
+                <label>Icono Grande (512x512)</label>
+                <input type="file" @change="(e) => subirIcono(e, 'icon_512_url')" accept="image/*" />
+                <div v-if="config.icon_512_url" class="img-preview-small" style="margin-top: 8px;">
+                  <img :src="config.icon_512_url" alt="Icon 512" style="width: 48px; height: 48px; object-fit: contain;" />
+                  <button @click="config.icon_512_url = ''" type="button" class="btn-text-danger">Eliminar</button>
+                </div>
+              </div>
+
+              <!-- Apple Touch -->
+              <div class="form-group">
+                <label>Icono Apple (180x180)</label>
+                <input type="file" @change="(e) => subirIcono(e, 'apple_touch_icon_url')" accept="image/*" />
+                <div v-if="config.apple_touch_icon_url" class="img-preview-small" style="margin-top: 8px;">
+                  <img :src="config.apple_touch_icon_url" alt="Apple Icon" style="width: 48px; height: 48px; object-fit: contain;" />
+                  <button @click="config.apple_touch_icon_url = ''" type="button" class="btn-text-danger">Eliminar</button>
+                </div>
+              </div>
+            </div>
+            <p style="font-size: 12px; color: #6b7280; margin-top: 12px;">
+              💡 Estos iconos se usarán para la instalación PWA y marcadores del navegador.
+            </p>
+          </div>
           
           <button @click="guardarConfig" class="btn-submit" :disabled="guardando" style="margin-top: 24px;">
             {{ guardando ? 'Guardando...' : '💾 Guardar Cambios' }}
@@ -270,16 +405,17 @@ const urlMenuDinamica = computed(() => {
 // Estado Menú
 const menuItems = ref([]);
 const newItem = ref({ 
-  nombre: '', 
-  categoria: '', 
-  precio: '', 
-  descripcion: '', 
+  nombre: '',
+  descripcion: '',
+  precio: 0,
+  categoria: '',
   tiempo_preparacion_min: 15,
   usa_inventario: false,
-  stock_actual: null,
-  stock_minimo: 5,
-  estado_inventario: 'disponible',
-  es_directo: false // ✅ AÑADIR ESTA LÍNEA
+  stock_actual: 0,
+  stock_minimo: 0,
+  unidad_medida: 'unidades',
+  es_directo: false,
+  image_url: '' // ✅ NUEVO
 });
 
 // Estado Configuración
@@ -288,8 +424,17 @@ const config = ref({
   subtitulo: 'Menú Digital',
   imagenPortada: '',
   imagenFondoMenu: '',
-  ocultarTextoPortada: false
+  ocultarTextoPortada: false,
+  color_primario: '#667eea', // ✅ NUEVO
+  color_secundario: '#764ba2' // ✅ NUEVO
 });
+
+// ✅ NUEVO: Porcentaje de propina
+const porcentajePropina = ref(10);
+
+// ✅ NUEVO: Estado de carga de imagen
+const subiendoImagen = ref(false);
+const itemEditandoImagen = ref(null); // ID del item cuya imagen se está subiendo
 
 // Estado Mesas
 const mesas = ref([]);
@@ -324,6 +469,107 @@ const cargarMenu = async () => {
   }
 };
 
+// ✅ NUEVO: Subir imagen del item a Cloudinary
+const subirImagenItem = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  // Validar tamaño (5MB máximo)
+  if (file.size > 5 * 1024 * 1024) {
+    alert('La imagen es muy grande. Máximo 5MB.');
+    return;
+  }
+  
+  subiendoImagen.value = true;
+  
+  try {
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    const res = await api.uploadMenuImage(formData);
+    newItem.value.image_url = res.data.url;
+    
+    alert('✅ Imagen subida correctamente');
+  } catch (err) {
+    console.error('Error subiendo imagen:', err);
+    alert('❌ Error al subir la imagen');
+  } finally {
+    subiendoImagen.value = false;
+  }
+};
+
+// ✅ NUEVO: Subir iconos de aplicación
+const subirIcono = async (event, campo) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Validar que sea imagen
+  if (!file.type.startsWith('image/')) {
+    alert('❌ Solo se permiten imágenes');
+    return;
+  }
+
+  if (file.size > 2 * 1024 * 1024) {
+    alert('❌ La imagen es muy grande. Máximo 2MB.');
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    // Usamos el mismo endpoint de upload de menú, Cloudinary maneja todo
+    const res = await api.uploadMenuImage(formData);
+    
+    // Actualizar campo específico en config
+    config.value[campo] = res.data.url;
+
+    alert(`✅ Icono subido correctamente. Recuerda Guardar Cambios para aplicar.`);
+  } catch (err) {
+    console.error('Error subiendo icono:', err);
+    alert('❌ Error al subir el icono');
+  }
+};
+
+// ✅ NUEVO: Subir imagen para item existente
+const subirImagenItemExistente = async (event, item) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+        alert('La imagen es muy grande. Máximo 5MB.');
+        return;
+    }
+
+    itemEditandoImagen.value = item.id;
+
+    try {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const res = await api.uploadMenuImage(formData);
+        item.image_url = res.data.url;
+
+        // Guardar en BD
+        await actualizarItem(item);
+
+        alert('✅ Imagen actualizada');
+    } catch (err) {
+        console.error('Error subiendo imagen:', err);
+        alert('❌ Error al subir la imagen');
+    } finally {
+        itemEditandoImagen.value = null;
+    }
+};
+
+// ✅ NUEVO: Eliminar imagen de item existente
+const eliminarImagenItem = async (item) => {
+    if (!confirm('¿Eliminar la imagen de este plato?')) return;
+
+    item.image_url = '';
+    await actualizarItem(item);
+};
+
 const crearItem = async () => {
   loading.value = true;
   try {
@@ -337,7 +583,9 @@ const crearItem = async () => {
       usa_inventario: newItem.value.usa_inventario,
       stock_actual: newItem.value.usa_inventario ? newItem.value.stock_actual : null,
       stock_minimo: newItem.value.usa_inventario ? newItem.value.stock_minimo : 5,
-      estado_inventario: newItem.value.usa_inventario ? 'disponible' : 'disponible'
+      estado_inventario: newItem.value.usa_inventario ? 'disponible' : 'disponible',
+      image_url: newItem.value.image_url || null, // ✅ NUEVO
+      es_directo: newItem.value.es_directo // ✅ NUEVO
     };
     
     await api.agregarMenuItem(itemData);
@@ -345,18 +593,21 @@ const crearItem = async () => {
     newItem.value = { 
       nombre: '', 
       categoria: '', 
-      precio: '', 
+      precio: 0,
       descripcion: '', 
       tiempo_preparacion_min: 15,
       usa_inventario: false,
-      stock_actual: null,
-      stock_minimo: 5,
-      estado_inventario: 'disponible'
+      stock_actual: 0,
+      stock_minimo: 0,
+      unidad_medida: 'unidades',
+      es_directo: false,
+      image_url: '' // ✅ NUEVO
     };
     
     await cargarMenu();
   } catch (err) {
-    alert('Error al crear item');
+    console.error(err);
+    alert('Error creando item');
   } finally {
     loading.value = false;
   }
@@ -404,7 +655,19 @@ const procesarImagen = (event, key) => {
 const guardarConfig = async () => {
   guardando.value = true;
   try {
+    // Guardar configuración de menú
     await api.saveConfig(config.value);
+    // ✅ NUEVO: Guardar porcentaje de propina
+    await api.updateConfig('porcentaje_propina', porcentajePropina.value);
+    
+    // ✅ NUEVO: Aplicar colores inmediatamente
+    if (config.value.color_primario) {
+      document.documentElement.style.setProperty('--theme-color', config.value.color_primario);
+    }
+    if (config.value.color_secundario) {
+      document.documentElement.style.setProperty('--background-color', config.value.color_secundario);
+    }
+    
     alert('✅ Configuración guardada en el servidor');
   } catch (err) {
     console.error('Error guardando config:', err);
@@ -420,6 +683,18 @@ const cargarConfig = async () => {
     if (res.data) {
       // Fusionar con defaults para no perder claves si el server devuelve parcial
       config.value = { ...config.value, ...res.data };
+      // ✅ NUEVO: Cargar porcentaje de propina
+      if (res.data.porcentaje_propina) {
+        porcentajePropina.value = parseFloat(res.data.porcentaje_propina);
+      }
+      
+      // ✅ NUEVO: Aplicar colores guardados
+      if (res.data.color_primario) {
+        document.documentElement.style.setProperty('--theme-color', res.data.color_primario);
+      }
+      if (res.data.color_secundario) {
+        document.documentElement.style.setProperty('--background-color', res.data.color_secundario);
+      }
     }
   } catch (err) {
     console.error('Error cargando config:', err);

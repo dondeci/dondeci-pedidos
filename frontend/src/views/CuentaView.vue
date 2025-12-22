@@ -49,6 +49,15 @@
           </div>
         </div>
         <div class="total-section">
+          <div class="subtotal-row">
+            <span>Subtotal:</span>
+            <span>${{ (pedido.subtotal || total).toLocaleString() }}</span>
+          </div>
+          <div class="subtotal-row">
+            <span>Propina ({{ calcularPorcentajePropina() }}%):</span>
+            <span>${{ (pedido.propina_monto || 0).toLocaleString() }}</span>
+          </div>
+          <div class="divider"></div>
           <div class="total-row">
             <span>Total a Pagar:</span>
             <span class="total-amount">${{ total.toLocaleString() }}</span>
@@ -58,13 +67,20 @@
 
       <!-- Botones de Acción -->
       <div class="actions-section" v-if="pedido.estado === 'servido'">
-        <button @click="pedirCuenta" class="btn-pedir-cuenta">
-          💳 Pedir la Cuenta
+        <button 
+          @click="pedirCuenta" 
+          class="btn-pedir-cuenta"
+          :disabled="cuentaSolicitada"
+        >
+          {{ cuentaSolicitada ? '✅ Cuenta Solicitada' : '💳 Pedir la Cuenta' }}
         </button>
+        <p v-if="cuentaSolicitada" class="cuenta-solicitada-msg">
+          Tu mesero ha sido notificado y se acercará pronto.
+        </p>
       </div>
 
       <div class="footer">
-        <p>Gracias por tu preferencia a Sazón de la Sierra</p>
+        <p>Gracias por tu preferencia a {{ title }}</p>
       </div>
     </div>
   </div>
@@ -75,10 +91,13 @@ import { ref, computed, onMounted } from 'vue';
 import api from '../api';
 import socket from '../socket';
 
+const title = import.meta.env.VITE_APP_TITLE;
+
 const pedido = ref(null);
 const items = ref([]);
 const loading = ref(true);
 const error = ref(null);
+const cuentaSolicitada = ref(false);
 
 // ✅ Detectar ruta MANUALMENTE (igual que PedidoStatus)
 const path = window.location.pathname;
@@ -102,9 +121,8 @@ const itemsAgrupados = computed(() => {
 });
 
 const total = computed(() => {
-  return itemsAgrupados.value.reduce((sum, item) => {
-    return sum + item.precio * item.cantidad;
-  }, 0);
+  // Usar el total del pedido (que incluye propina) en lugar de calcularlo
+  return parseFloat(pedido.value?.total || 0);
 });
 
 
@@ -149,14 +167,25 @@ const formatFecha = (fecha) => {
 };
 
 const pedirCuenta = () => {
-  if (!pedido.value) return;
+  if (!pedido.value || cuentaSolicitada.value) return;
+  
+  cuentaSolicitada.value = true;
   
   socket.emit('solicitar_cuenta', {
     pedido_id: pedido.value.id,
-    mesa_numero: pedido.value.mesa_numero
+    mesa_numero: pedido.value.mesa_numero,
+    mesero_id: pedido.value.usuario_mesero_id
   });
   
-  alert('✅ Tu mesero ha sido notificado');
+  alert('✅ Tu mesero ha sido notificado y se acercará pronto para el pago.');
+};
+
+const calcularPorcentajePropina = () => {
+  if (!pedido.value || !pedido.value.subtotal || !pedido.value.propina_monto) return 10;
+  const subtotal = parseFloat(pedido.value.subtotal);
+  const propina = parseFloat(pedido.value.propina_monto);
+  if (subtotal === 0) return 10;
+  return Math.round((propina / subtotal) * 100);
 };
 
 onMounted(() => {
@@ -312,6 +341,21 @@ onMounted(() => {
   padding-top: 16px;
 }
 
+.subtotal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  opacity: 0.9;
+}
+
+.divider {
+  border-top: 1px dashed rgba(255,255,255,0.5);
+  margin: 12px 0;
+}
+
 .total-row {
   display: flex;
   justify-content: space-between;
@@ -344,8 +388,21 @@ onMounted(() => {
 }
 
 .btn-pedir-cuenta:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 35px rgba(16, 185, 129, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.5);
+}
+
+.btn-pedir-cuenta:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.cuenta-solicitada-msg {
+  margin-top: 12px;
+  color: #059669;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .footer {

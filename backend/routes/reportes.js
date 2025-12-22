@@ -3,42 +3,76 @@ import { getAsync, allAsync } from '../config/db.js';
 
 const router = express.Router();
 
-// GET /api/reportes/ventas-hoy - Ventas del día
+// GET /api/reportes/ventas-hoy - Ventas del día (o rango)
 router.get('/ventas-hoy', async (req, res) => {
     try {
+        const { fecha_inicio, fecha_fin } = req.query;
+
+        // Si no hay filtros, usar el día actual
+        let whereClause = 'WHERE DATE(created_at) = CURRENT_DATE';
+        let params = [];
+
+        if (fecha_inicio && fecha_fin) {
+            whereClause = 'WHERE DATE(created_at) BETWEEN $1 AND $2';
+            params = [fecha_inicio, fecha_fin];
+        } else if (fecha_inicio) {
+            whereClause = 'WHERE DATE(created_at) >= $1';
+            params = [fecha_inicio];
+        } else if (fecha_fin) {
+            whereClause = 'WHERE DATE(created_at) <= $1';
+            params = [fecha_fin];
+        }
+
         const query = `
             SELECT
                 metodo_pago,
                 COUNT(*) as cantidad,
                 SUM(monto) as total
             FROM transacciones
-            WHERE DATE(created_at) = CURRENT_DATE
+            ${whereClause}
             GROUP BY metodo_pago
         `;
 
-        const reportes = await allAsync(query);
+        const reportes = await allAsync(query, params);
 
         const totalQuery = `
             SELECT SUM(monto) as total
             FROM transacciones
-            WHERE DATE(created_at) = CURRENT_DATE
+            ${whereClause}
         `;
 
-        const totalRow = await getAsync(totalQuery);
+        const totalRow = await getAsync(totalQuery, params);
 
         res.json({
             detalles: reportes,
             total_general: totalRow?.total || 0,
-            fecha: new Date().toISOString().split('T')[0]
+            fecha: fecha_inicio && fecha_fin ? `${fecha_inicio} a ${fecha_fin}` : new Date().toISOString().split('T')[0]
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// GET /api/reportes/pedidos-hoy - Pedidos del día
+// GET /api/reportes/pedidos-hoy - Pedidos del día (o rango)
 router.get('/pedidos-hoy', async (req, res) => {
     try {
+        const { fecha_inicio, fecha_fin } = req.query;
+
+        // Si no hay filtros, usar el día actual
+        let whereClause = 'WHERE DATE(p.created_at) = CURRENT_DATE';
+        let params = [];
+
+        if (fecha_inicio && fecha_fin) {
+            whereClause = 'WHERE DATE(p.created_at) BETWEEN $1 AND $2';
+            params = [fecha_inicio, fecha_fin];
+        } else if (fecha_inicio) {
+            whereClause = 'WHERE DATE(p.created_at) >= $1';
+            params = [fecha_inicio];
+        } else if (fecha_fin) {
+            whereClause = 'WHERE DATE(p.created_at) <= $1';
+            params = [fecha_fin];
+        }
+
         const query = `
             SELECT
                 p.id,
@@ -54,12 +88,12 @@ router.get('/pedidos-hoy', async (req, res) => {
             LEFT JOIN usuarios u ON p.usuario_mesero_id = u.id
             LEFT JOIN pedido_items pi ON p.id = pi.pedido_id
             LEFT JOIN transacciones t ON p.id = t.pedido_id
-            WHERE DATE(p.created_at) = CURRENT_DATE
+            ${whereClause}
             GROUP BY p.id, p.mesa_numero, u.nombre, p.total, p.estado, p.created_at, t.usuario_facturero_id, t.metodo_pago
             ORDER BY p.created_at DESC
         `;
 
-        const pedidos = await allAsync(query);
+        const pedidos = await allAsync(query, params);
         res.json(pedidos);
     } catch (error) {
         res.status(500).json({ error: error.message });

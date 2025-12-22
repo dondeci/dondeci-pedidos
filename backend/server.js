@@ -1,11 +1,10 @@
-process.env.TZ = 'UTC';
+process.env.TZ = 'America/Bogota'; // ✅ CONFIGURAR TIMEZONE PARA COLOMBIA (UTC-5)
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import pool from './config/db.js';
-import { allAsync } from './config/db.js';
+import pool, { runAsync, getAsync, allAsync } from './config/db.js';
 
 // Importar rutas
 import authRoutes from './routes/auth.js';
@@ -15,6 +14,9 @@ import mesasRoutes from './routes/mesas.js';
 import pedidosRoutes from './routes/pedidos.js';
 import reportesRoutes from './routes/reportes.js';
 import transaccionesRoutes from './routes/transacciones.js';
+import uploadRoutes from './routes/upload.js';
+import manifestRoutes from './routes/manifest.js'; // ✅ NUEVO
+import iconsRoutes from './routes/icons.js'; // ✅ NUEVO // ✅ NUEVO
 
 dotenv.config();
 
@@ -34,7 +36,8 @@ app.set('io', io);
 
 // Middlewares
 app.use(cors());
-app.use(express.json());
+// ✅ AUMENTAR LÍMITE para imágenes base64 grandes en configuración (50MB)
+app.use(express.json({ limit: '50mb' }));
 
 // ============= INICIALIZACIÓN DE BD =============
 async function initDatabase() {
@@ -168,6 +171,9 @@ app.use('/api/pedidos', pedidosRoutes);
 app.use('/api/pedido-items', pedidosRoutes); // Items usan el mismo router
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/transacciones', transaccionesRoutes);
+app.use('/api/upload', uploadRoutes); // ✅ NUEVO
+app.use('/api/manifest', manifestRoutes); // ✅ NUEVO - Manifest dinámico
+app.use('/api/icons', iconsRoutes); // ✅ NUEVO - Iconos dinámicos
 
 // ============= CONFIGURACIÓN =============
 app.get('/api/config', async (req, res) => {
@@ -180,6 +186,62 @@ app.get('/api/config', async (req, res) => {
             else config[row.clave] = row.valor;
         });
         res.json(config);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/config - Guardar múltiples claves de configuración
+app.post('/api/config', async (req, res) => {
+    try {
+        const config = req.body;
+
+        // Guardar cada clave en la base de datos
+        for (const [clave, valor] of Object.entries(config)) {
+            // ✅ FILTRAR: Ignorar valores base64 (imágenes muy grandes)
+            if (typeof valor === 'string' && valor.startsWith('data:image')) {
+                // Las imágenes base64 son muy grandes, saltarlas
+                // (se manejan por separado si es necesario)
+                continue;
+            }
+
+            const valorString = String(valor);
+
+            await runAsync(
+                `INSERT INTO configuracion (clave, valor) 
+                 VALUES ($1, $2)
+                 ON CONFLICT (clave) 
+                 DO UPDATE SET valor = $2`,
+                [clave, valorString]
+            );
+        }
+
+        res.json({ success: true, message: 'Configuración guardada' });
+    } catch (error) {
+        console.error('Error guardando configuración:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// PUT /api/config/:clave - Actualizar configuración
+app.put('/api/config/:clave', async (req, res) => {
+    try {
+        const { clave } = req.params;
+        const { valor } = req.body;
+
+        if (!valor && valor !== 0 && valor !== false) {
+            return res.status(400).json({ error: 'Valor requerido' });
+        }
+
+        // Convertir booleanos y números a string para almacenar
+        const valorString = String(valor);
+
+        await runAsync(
+            'INSERT INTO configuracion (clave, valor) VALUES ($1, $2) ON CONFLICT (clave) DO UPDATE SET valor = $2',
+            [clave, valorString]
+        );
+
+        res.json({ message: '✓ Configuración actualizada', clave, valor: valorString });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

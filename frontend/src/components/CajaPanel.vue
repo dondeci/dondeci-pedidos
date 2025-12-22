@@ -65,8 +65,56 @@
               <strong>{{ pedidoSeleccionado.mesa_numero }}</strong>
             </div>
             <div class="info-row">
-              <span>Total a Pagar:</span>
-              <strong class="monto-total">${{ pedidoSeleccionado.total }}</strong>
+              <span>Total del Pedido:</span>
+              <strong>${{ Math.round(pedidoSeleccionado.total || 0).toLocaleString() }}</strong>
+            </div>
+            <div v-if="pedidoSeleccionado.total_pagado > 0" class="info-row">
+              <span>Ya Pagado:</span>
+              <strong class="text-success">${{ Math.round(pedidoSeleccionado.total_pagado || 0).toLocaleString() }}</strong>
+            </div>
+            <div class="info-row">
+              <span>Pendiente a Pagar:</span>
+              <strong class="monto-total">${{ Math.round(saldoPendiente || pedidoSeleccionado.total || 0).toLocaleString() }}</strong>
+            </div>
+          </div>
+
+          <!-- ✅ NUEVO: Selección de Propina -->
+          <!-- Solo permitir cambiar propina en el primer pago -->
+          <div class="form-group propina-section" v-if="!pedidoSeleccionado.total_pagado || pedidoSeleccionado.total_pagado === 0">
+            <label>Propina</label>
+            <div class="propina-options">
+              <label class="propina-option">
+                <input type="radio" v-model="opcionPropina" value="sin_propina" />
+                <span>Sin propina (Solo ${{ Math.round(pedidoSeleccionado.subtotal || pedidoSeleccionado.total || 0).toLocaleString() }})</span>
+              </label>
+              <label class="propina-option">
+                <input type="radio" v-model="opcionPropina" value="sugerida" />
+                <span>Propina sugerida (${{ Math.round(pedidoSeleccionado.propina_monto || 0).toLocaleString() }})</span>
+              </label>
+              <label class="propina-option">
+                <input type="radio" v-model="opcionPropina" value="personalizada" />
+                <span>Propina personalizada</span>
+              </label>
+            </div>
+            <div v-if="opcionPropina === 'personalizada'" class="propina-input">
+              <input
+                v-model.number="propinaPersonalizada"
+                type="number"
+                placeholder="Ingrese monto de propina"
+                min="0"
+                step="100"
+                class="monto-input"
+              />
+            </div>
+            <div class="total-con-propina">
+              <strong>Total a Pagar: ${{ Math.round(totalConPropina).toLocaleString() }}</strong>
+            </div>
+          </div>
+          
+          <!-- Mensaje informativo si ya hubo pago parcial -->
+          <div v-else class="form-group">
+            <div class="info-box">
+              ℹ️ La propina ya fue establecida en el primer pago. Pendiente: ${{ Math.round(saldoPendiente || 0).toLocaleString() }}
             </div>
           </div>
 
@@ -84,17 +132,32 @@
             </div>
           </div>
 
-          <div v-if="metodoSeleccionado === 'efectivo'" class="form-group">
-            <label>Monto Recibido</label>
-            <input
-              v-model.number="montoRecibido"
-              type="number"
-              placeholder="0.00"
-              min="0"
-              step="0.01"
-              class="monto-input"
-            />
-            <div v-if="montoRecibido && montoRecibido > pedidoSeleccionado.total" class="cambio">
+          <!-- ✅ MODIFICADO: Input de monto para TODOS los métodos -->
+          <div v-if="metodoSeleccionado" class="form-group">
+            <label>
+              {{ metodoSeleccionado === 'efectivo' ? 'Monto Recibido' : 'Monto a Pagar' }}
+            </label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <input
+                v-model.number="montoRecibido"
+                type="number"
+                :placeholder="metodoSeleccionado === 'efectivo' ? '0.00' : `Max: ${Math.round(saldoPendiente || pedidoSeleccionado.total || 0).toLocaleString()}`"
+                min="0"
+                :max="saldoPendiente || pedidoSeleccionado.total"
+                step="100"
+                class="monto-input"
+                style="flex: 1;"
+              />
+              <button 
+                @click="montoRecibido = Math.round(saldoPendiente || pedidoSeleccionado.total || 0)"
+                class="btn btn-secondary btn-sm"
+                type="button"
+                style="white-space: nowrap;"
+              >
+                💰 Total
+              </button>
+            </div>
+            <div v-if="metodoSeleccionado === 'efectivo' && montoRecibido && montoRecibido > (saldoPendiente || pedidoSeleccionado.total)" class="cambio">
               💵 Cambio: ${{ (montoRecibido - pedidoSeleccionado.total).toFixed(2) }}
             </div>
              <div v-if="montoRecibido && montoRecibido < pedidoSeleccionado.total" class="alerta">
@@ -222,6 +285,9 @@ const montoRecibido = ref(null);
 const pedidosPagadosHoy = ref([]);
 const ticketData = ref(null);
 const pagoDetalle = ref(null);
+// ✅ NUEVO: Variables para manejo de propinas
+const opcionPropina = ref('sugerida'); // 'sin_propina' | 'personalizada' | 'sugerida'
+const propinaPersonalizada = ref(null);
 
 const metodoPagos = ['efectivo', 'tarjeta', 'nequi', 'otro_digital'];
 
@@ -231,6 +297,22 @@ const pedidosListosPagar = computed(() => {
   return [...listos, ...enCaja].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 });
 const pedidosPagados = computed(() => pedidoStore.pedidosPorEstado.pagado);
+
+// ✅ NUEVO: Calcular total dinámico con propina
+const totalConPropina = computed(() => {
+  if (!pedidoSeleccionado.value) return 0;
+  
+  const subtotal = parseFloat(pedidoSeleccionado.value.subtotal || pedidoSeleccionado.value.total || 0);
+  const propinaSugerida = parseFloat(pedidoSeleccionado.value.propina_monto || 0);
+  
+  if (opcionPropina.value === 'sin_propina') {
+    return subtotal;
+  } else if (opcionPropina.value === 'personalizada') {
+    return subtotal + (parseFloat(propinaPersonalizada.value) || 0);
+  } else { // 'sugerida'
+    return subtotal + propinaSugerida;
+  }
+});
 
 // Agrupar items por nombre para mostrar cantidades consolidadas
 const itemsAgrupados = computed(() => {
@@ -281,7 +363,11 @@ const seleccionarPedido = (pedido) => {
   pedidoSeleccionado.value = pedido;
   metodoSeleccionado.value = '';
   montoRecibido.value = null;
-  saldoPendiente.value = pedido.total; // al inicio el pendiente es el total
+  // ✅ CORREGIDO: Usar pendiente del backend (que ya resta los pagos previos)
+  saldoPendiente.value = pedido.pendiente !== undefined ? pedido.pendiente : pedido.total;
+  // ✅ NUEVO: Resetear opciones de propina
+  opcionPropina.value = 'sugerida';
+  propinaPersonalizada.value = null;
 };
 
 
@@ -323,10 +409,27 @@ const prepararTicket = (pedido, tipo, metodo = null, extras = {}) => {
 
   const itemsFinales = Object.values(itemsAgrupadosParaTicket);
 
+  // ✅ CORREGIDO: Si pedido no tiene subtotal (pedidos viejos), calcularlo desde los items
+  let subtotal = pedido.subtotal;
+  let propinaMonto = pedido.propina_monto || 0;
+  
+  if (!subtotal) {
+    // Calcular subtotal sumando precio de todos los items
+    subtotal = itemsFinales.reduce((sum, item) => {
+      return sum + (item.cantidad * item.precio);
+    }, 0);
+    
+    // Calcular propina como diferencia entre total y subtotal
+    const total = parseFloat(pedido.total || 0);
+    propinaMonto = total - subtotal;
+  }
+
   ticketData.value = {
     tipo,
     mesa: pedido.mesa_numero,
-    totalPedido: pedido.total,                 // total real del pedido
+    subtotal: subtotal,                                     // ✅ CORREGIDO
+    propinaMonto: propinaMonto,                             // ✅ CORREGIDO
+    totalPedido: pedido.total,                              // total real del pedido
     items: itemsFinales,
     cajero: usuarioStore.usuario.nombre,
     metodoPago: metodo,
@@ -349,7 +452,7 @@ const imprimirContenido = (data) => {
   const contenidoHTML = `
     <html>
     <head>
-      <title>Ticket - Restaurante Sazón de la Sierra</title>
+      <title>Ticket - ${import.meta.env.VITE_APP_TITLE}</title>
       <style>
         body { font-family: 'Courier New', monospace; width: 300px; margin: 0 auto; padding: 10px; font-size: 12px; }
         .header { text-align: center; margin-bottom: 10px; }
@@ -366,8 +469,8 @@ const imprimirContenido = (data) => {
     </head>
     <body>
       <div class="header">
-        <h3>RESTAURANTE SAZÓN DE LA SIERRA</h3>
-        <p>NIT: 900.123.456-7</p>
+        <h3>${import.meta.env.VITE_APP_TITLE.toUpperCase()}</h3>
+        <p>NIT: ${import.meta.env.VITE_APP_NIT}</p>
         <p>Fecha: ${new Date().toLocaleString()}</p>
         <p>Mesa: ${data.mesa}</p>
         <p>Cajero: ${data.cajero}</p>
@@ -395,19 +498,28 @@ const imprimirContenido = (data) => {
       <div class="total-section">
         <div class="divider"></div>
         <div class="row">
+          <span>Subtotal:</span>
+          <span>$${Math.round(data.subtotal).toLocaleString()}</span>
+        </div>
+        <div class="row">
+          <span>Propina (${data.propinaMonto > 0 ? Math.round((data.propinaMonto / data.subtotal) * 100) : 0}%):</span>
+          <span>$${Math.round(data.propinaMonto).toLocaleString()}</span>
+        </div>
+        <div class="divider"></div>
+        <div class="row" style="font-size: 18px;">
           <span>TOTAL:</span>
-          <span>$${data.totalPedido}</span>
+          <span>$${Math.round(data.totalPedido).toLocaleString()}</span>
         </div>
         ${data.montoRecibido != null ? `
           <div class="row">
             <span>Recibido:</span>
-            <span>$${data.montoRecibido}</span>
+            <span>$${Math.round(data.montoRecibido).toLocaleString()}</span>
           </div>
         ` : ''}
         ${data.cambio != null ? `
           <div class="row">
             <span>Cambio:</span>
-            <span>$${data.cambio}</span>
+            <span>$${Math.round(data.cambio).toLocaleString()}</span>
           </div>
         ` : ''}
         <div class="divider"></div>
@@ -462,37 +574,82 @@ const procesarPago = async () => {
   let montoRecibidoEstaVez = 0;
   let montoQueSeRegistra = 0;
 
+  // ✅ MODIFICADO: Todos los métodos pueden hacer pagos parciales
+  if (!montoRecibido.value || montoRecibido.value <= 0) {
+    alert('Ingresa un monto válido');
+    return;
+  }
+  
+  montoRecibidoEstaVez = Number(montoRecibido.value);
+  
+  // Para efectivo, puede recibir más y dar cambio
+  // Para otros métodos, solo registrar lo que se paga
   if (metodoSeleccionado.value === 'efectivo') {
-    if (!montoRecibido.value || montoRecibido.value <= 0) {
-      alert('Ingresa un monto válido en efectivo');
-      return;
-    }
-    montoRecibidoEstaVez = Number(montoRecibido.value);
-
-    // Lo que se registra en transacciones es el mínimo entre recibido y pendiente
     montoQueSeRegistra = Math.min(montoRecibidoEstaVez, pendienteActual);
   } else {
-    // Otros métodos pagan exactamente el saldo pendiente
-    montoRecibidoEstaVez = pendienteActual;
-    montoQueSeRegistra = pendienteActual;
+    // Validar que no exceda el pendiente
+    if (montoRecibidoEstaVez > pendienteActual) {
+      alert(`❌ El monto no puede exceder el pendiente: $${Math.round(pendienteActual).toLocaleString()}`);
+      return;
+    }
+    montoQueSeRegistra = montoRecibidoEstaVez;
   }
+
+  // ✅ ACTUALIZADO: Calcular propina final SOLO si es el primer pago
+  // Si ya hubo pagos, no modificar la propina del pedido
+  let propinaFinal = null;
+  const esPrimerPago = !pedidoSeleccionado.value.total_pagado || pedidoSeleccionado.value.total_pagado === 0;
+  
+  if (esPrimerPago) {
+    if (opcionPropina.value === 'sin_propina') {
+      propinaFinal = 0;
+    } else if (opcionPropina.value === 'personalizada') {
+      propinaFinal = parseFloat(propinaPersonalizada.value) || 0;
+    } else { // 'sugerida'
+      propinaFinal = parseFloat(pedidoSeleccionado.value.propina_monto) || 0;
+    }
+  }
+  // Si no es el primer pago, propinaFinal queda en null y el backend no modifica el total
 
   try {
     const res = await api.registrarPago(
       pedidoSeleccionado.value.id,
       usuarioStore.usuario.id,
       montoQueSeRegistra,
-      metodoSeleccionado.value
+      metodoSeleccionado.value,
+      propinaFinal // ✅ NUEVO: Enviar propina al backend
     );
 
     const { total_pagado, total_pedido, pendiente } = res.data;
-    saldoPendiente.value = pendiente;
+    
+    // ✅ CRÍTICO: Recargar datos del pedido desde el backend
+    await actualizarPedidos();
+    
+    // Volver a seleccionar el pedido para tener datos frescos
+    const pedidoActualizado = pedidosListosPagar.value.find(p => p.id === pedidoSeleccionado.value.id);
+    
+    console.log('🔍 Pedido actualizado desde backend:', pedidoActualizado); // DEBUG
+    
+    if (pedidoActualizado) {
+      // Actualizar TODA la referencia del pedido
+      pedidoSeleccionado.value = { ...pedidoActualizado };
+      saldoPendiente.value = pedidoActualizado.pendiente || 0;
+      
+      console.log('✅ Pedido seleccionado actualizado:', {
+        total: pedidoSeleccionado.value.total,
+        total_pagado: pedidoSeleccionado.value.total_pagado,
+        pendiente: pedidoSeleccionado.value.pendiente,
+        saldoPendiente: saldoPendiente.value
+      }); // DEBUG
+    } else {
+      console.warn('⚠️ No se encontró el pedido actualizado en la lista');
+    }
 
     const cambio = metodoSeleccionado.value === 'efectivo'
       ? Math.max(montoRecibidoEstaVez - montoQueSeRegistra, 0)
       : 0;
 
-    // Ticket usa SIEMPRE el total del pedido, no lo sobreescribimos
+    // Ticket usa datos ACTUALIZADOS del pedido
     prepararTicket(
       pedidoSeleccionado.value,
       'pago',
@@ -506,9 +663,9 @@ const procesarPago = async () => {
 
     alert(
       `✅ Pago registrado.\n` +
-      `Pagado ahora: $${montoQueSeRegistra}\n` +
-      `Total pagado: $${total_pagado}\n` +
-      `Pendiente: $${pendiente}`
+      `Pagado ahora: $${Math.round(montoQueSeRegistra).toLocaleString()}\n` +
+      `Total pagado: $${Math.round(total_pagado).toLocaleString()}\n` +
+      `Pendiente: $${Math.round(pendiente).toLocaleString()}`
     );
 
     imprimirContenido(ticketData.value);
@@ -517,7 +674,7 @@ const procesarPago = async () => {
       cancelarPago();
       await actualizarPedidos();
     } else {
-      // aún falta saldo
+      // aún falta saldo - resetear form pero mantener pedido seleccionado
       metodoSeleccionado.value = '';
       montoRecibido.value = null;
     }

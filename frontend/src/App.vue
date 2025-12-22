@@ -23,7 +23,7 @@
         <nav class="navbar">
           <div class="navbar-content">
             <div class="navbar-left">
-              <h1 class="logo">🍽️ Restaurante Sazon de la Sierra</h1>
+              <h1 class="logo">🍽️ {{ nombreRestaurante }}</h1>
               <div class="connection-status" :class="{ 'connected': isConnected }" title="Estado de conexión"></div>
               <span class="rol-badge" :class="`rol-${usuarioStore.usuario.rol}`">
                 {{ obtenerNombreRol(usuarioStore.usuario.rol) }}
@@ -63,6 +63,24 @@ import PedidoStatus from './components/PedidoStatus.vue';
 import CuentaView from './views/CuentaView.vue';
 
 import socket from './socket';
+import api from './api'; // ✅ NUEVO
+
+const title = import.meta.env.VITE_APP_TITLE;
+
+// ✅ NUEVO: Nombre dinámico del restaurante
+const nombreRestaurante = ref(import.meta.env.VITE_APP_TITLE || 'Restaurante Demo');
+
+const cargarNombreRestaurante = async () => {
+  try {
+    const res = await api.getConfig();
+    if (res.data && res.data.nombre) {
+      nombreRestaurante.value = res.data.nombre;
+      document.title = res.data.nombre; // ✅ NUEVO: Actualizar título de la ventana
+    }
+  } catch (err) {
+    console.error('Error cargando nombre:', err);
+  }
+};
 
 const isPublicMenu = ref(false);
 const isPublicMesasQR = ref(false);
@@ -80,6 +98,7 @@ const pedidoStore = usePedidoStore();
 onMounted(() => {
   usuarioStore.cargarUsuarioGuardado();
   pedidoStore.iniciarRealTime(); // Iniciar listeners de Socket.io
+  cargarNombreRestaurante(); // ✅ NUEVO: Cargar nombre del restaurante
   
   // Monitorear conexión
   socket.on('connect', () => {

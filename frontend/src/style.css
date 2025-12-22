@@ -1,6 +1,7 @@
 :root {
-  --color-primary: #667eea;
-  --color-secondary: #764ba2;
+  /* ✅ Colores desde .env (inyectados en main.js como --theme-color y --background-color) */
+  --color-primary: var(--theme-color, #667eea);
+  --color-secondary: var(--background-color, #764ba2);
   --color-success: #10b981;
   --color-error: #ef4444;
   --color-warning: #f59e0b;
@@ -115,10 +116,25 @@ label {
   margin: 0 auto;
   padding: 20px;
 }
-body, #app, .main-content, .cocinero-panel, .card, .panel-content, .section, .pedido-card, .items-list, .item-line, input, button, label, span {
+
+body,
+#app,
+.main-content,
+.cocinero-panel,
+.card,
+.panel-content,
+.section,
+.pedido-card,
+.items-list,
+.item-line,
+input,
+button,
+label,
+span {
   user-select: auto !important;
   pointer-events: auto !important;
 }
+
 .row {
   display: flex;
   gap: 20px;

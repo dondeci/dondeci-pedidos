@@ -131,7 +131,7 @@
 
         <!-- Detalle de Pedidos -->
         <div class="section">
-          <h3>📋 Pedidos Hoy</h3>
+          <h3>📋 Pedidos Día</h3>
           <div v-if="pedidosHoy.length === 0" class="empty-state">
             Sin pedidos hoy
           </div>
@@ -387,9 +387,14 @@ const limpiarFiltros = () => {
 const cargarReportes = async () => {
   loading.value = true;
   try {
+    // ✅ NUEVO: Construir params con filtros de fecha
+    const params = {};
+    if (filtroFechaInicio.value) params.fecha_inicio = filtroFechaInicio.value;
+    if (filtroFechaFin.value) params.fecha_fin = filtroFechaFin.value;
+
     const [ventasRes, pedidosRes, historicoRes] = await Promise.all([
-      api.getVentasHoy(),
-      api.getPedidosHoy(),
+      api.getVentasHoy(params),
+      api.getPedidosHoy(params),
       api.getReporteHistorico()
     ]);
     detallesVentas.value = ventasRes.data.detalles || [];
@@ -480,6 +485,8 @@ const cargarTopPlatos = async () => {
 
 // Modificar el botón de filtrar para que actualice AMBAS tablas
 const aplicarFiltros = () => {
+    // ✅ CORREGIDO: Recargar TODAS las estadísticas con los filtros
+    cargarReportes();
     cargarTiemposCocina();
     cargarTopPlatos();
 };

@@ -65,6 +65,14 @@
               }]"
               @click="agregarItemAlPedido(item)"
             >
+              <!-- ✅ NUEVO: Imagen del item -->
+              <div v-if="item.image_url" class="item-image">
+                <img :src="item.image_url" :alt="item.nombre" />
+              </div>
+              <div v-else class="item-image-placeholder">
+                🍽️
+              </div>
+              
               <div class="item-nombre">{{ item.nombre }}</div>
               <div class="item-precio">${{ item.precio }}</div>
               <div class="item-tiempo">⏱️ {{ item.tiempo_preparacion_min }}min</div>

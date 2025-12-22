@@ -7,7 +7,7 @@ const router = express.Router();
 // POST /api/transacciones - Registrar pago (parcial o completo)
 router.post('/', async (req, res) => {
   try {
-    const { pedido_id, usuario_facturero_id, monto, metodo_pago } = req.body;
+    const { pedido_id, usuario_facturero_id, monto, metodo_pago, propina_final } = req.body;
 
     if (!pedido_id || !monto || !metodo_pago) {
       return res.status(400).json({ error: 'Pedido, monto y método de pago requeridos' });
@@ -15,7 +15,7 @@ router.post('/', async (req, res) => {
 
     // 1) Verificar que el pedido existe
     const pedido = await getAsync(
-      'SELECT id, total, estado FROM pedidos WHERE id = $1',
+      'SELECT id, total, subtotal, propina_monto, estado FROM pedidos WHERE id = $1',
       [pedido_id]
     );
 
@@ -23,7 +23,36 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ error: 'Pedido no encontrado' });
     }
 
-    const totalPedido = parseFloat(pedido.total);
+    // ✅ NUEVO: Si se especifica propina_final, actualizar el total del pedido
+    let totalPedido = parseFloat(pedido.total);
+    let subtotalPedido = parseFloat(pedido.subtotal);
+    let propinaPedido = parseFloat(pedido.propina_monto || 0);
+
+    // Si subtotal es null (pedidos viejos), calcularlo desde el total actual
+    if (!pedido.subtotal) {
+      const porcentajeConfig = await runAsync(
+        'SELECT valor FROM configuracion WHERE clave = $1',
+        ['porcentaje_propina']
+      );
+      const porcPropina = parseFloat(porcentajeConfig.rows[0]?.valor || 10);
+      subtotalPedido = Math.round(totalPedido / (1 + porcPropina / 100));
+      propinaPedido = totalPedido - subtotalPedido;
+    }
+
+    if (propina_final !== undefined && propina_final !== null) {
+      // Cliente especificó una propina diferente (puede ser 0, personalizada, o la sugerida)
+      const nuevaPropina = parseFloat(propina_final);
+      const nuevoTotal = subtotalPedido + nuevaPropina;
+
+      // Actualizar el pedido con la nueva propina
+      await runAsync(
+        'UPDATE pedidos SET subtotal = $1, propina_monto = $2, total = $3 WHERE id = $4',
+        [subtotalPedido, nuevaPropina, nuevoTotal, pedido_id]
+      );
+
+      totalPedido = nuevoTotal;
+      propinaPedido = nuevaPropina;
+    }
 
     // 🚫 No permitir pagos sobre pedidos ya cerrados
     if (['pagado', 'cancelado'].includes(pedido.estado)) {

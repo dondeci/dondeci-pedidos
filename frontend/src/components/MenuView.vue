@@ -15,8 +15,8 @@
     }"
   ></div>
   <div class="cover-content" v-if="!config.ocultarTextoPortada">
-    <h1 class="restaurant-name">{{ config.nombre || 'Restaurante Sierra Nevada' }}</h1>
-    <p class="restaurant-subtitle">{{ config.subtitulo || 'Menú Digital' }}</p>
+    <h1 class="restaurant-name">{{ config.nombre || fallbackTitle }}</h1>
+    <p class="restaurant-subtitle">{{ config.subtitulo || fallbackSubtitle }}</p>
   </div>
   <div class="scroll-hint">Desliza para ver el menú ↓</div>
 </div>
@@ -29,6 +29,11 @@
           <h2 class="category-title">{{ categoria }}</h2>
           <div class="items-list">
             <div v-for="item in items" :key="item.id" class="menu-item" :class="{ 'no-stock': !item.disponible }">
+              <!-- ✅ NUEVO: Imagen del item -->
+              <div v-if="item.image_url" class="menu-item-image">
+                <img :src="item.image_url" :alt="item.nombre" />
+              </div>
+              
               <div class="item-details">
                 <h3 class="item-name">{{ item.nombre }}</h3>
                 <p class="item-desc">{{ item.descripcion }}</p>
@@ -56,10 +61,14 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '../api';
 
+// ✅ Fallback desde .env
+const fallbackTitle = import.meta.env.VITE_APP_TITLE || 'Restaurante';
+const fallbackSubtitle = import.meta.env.VITE_APP_DESCRIPTION || 'Menú Digital';
+
 const menuItems = ref([]);
 const config = ref({
-  nombre: 'Restaurante Sierra Nevada',
-  subtitulo: 'Experiencia Gastronómica',
+  nombre: '', // ✅ Vacío por defecto, fallback a .env
+  subtitulo: '',
   imagenPortada: '',
   imagenFondoMenu: '',
   ocultarTextoPortada: false
@@ -107,8 +116,17 @@ const cargarMenu = async () => {
     // Cargar configuración del servidor
     try {
       const configRes = await api.getConfig();
+      console.log('🔍 MenuView - Config recibida:', configRes.data); // ✅ DEBUG
+      
       if (configRes.data) {
-        config.value = { ...config.value, ...configRes.data };
+        // ✅ CAMBIADO: asignar directamente las propiedades
+        config.value.nombre = configRes.data.nombre || 'Restaurante Sierra Nevada';
+        config.value.subtitulo = configRes.data.subtitulo || 'Menú Digital';
+        config.value.imagenPortada = configRes.data.imagenPortada || '';
+        config.value.imagenFondoMenu = configRes.data.imagenFondoMenu || '';
+        config.value.ocultarTextoPortada = configRes.data.ocultarTextoPortada || false;
+        
+        console.log('✅ MenuView - Config aplicada:', config.value); // ✅ DEBUG
       }
     } catch (configErr) {
       console.error('Error cargando configuración:', configErr);
@@ -209,6 +227,26 @@ onMounted(() => {
 
 .menu-item.no-stock {
   opacity: 0.6;
+}
+
+/* ✅ NUEVO: Imagen de item en menú */
+.menu-item-image {
+  width: 150px;
+  height: 100px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-right: 16px;
+  flex-shrink: 0;
+}
+
+.menu-item-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.item-details {
+  flex: 1;
 }
 
 .item-name {

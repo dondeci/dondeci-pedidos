@@ -52,17 +52,25 @@ router.post('/', async (req, res) => {
         const nombreMesero = mesero ? mesero.nombre : 'Sin asignar';
 
         const pedido_id = uuidv4();
-        let total = 0;
 
+        // ✅ NUEVO: Calcular subtotal y propina
+        let subtotal = 0;
         items.forEach(item => {
-            total += item.cantidad * item.precio_unitario;
+            subtotal += item.cantidad * item.precio_unitario;
         });
 
+        // Obtener porcentaje de propina de configuración (default 10%)
+        const configPropina = await getAsync('SELECT valor FROM configuracion WHERE clave = $1', ['porcentaje_propina']);
+        const porcentajePropina = parseFloat(configPropina?.valor || 10);
+
+        const propinaSugerida = Math.round(subtotal * (porcentajePropina / 100));
+        const total = subtotal + propinaSugerida;
+
         const pedidoQuery = `
-            INSERT INTO pedidos(id, mesa_numero, usuario_mesero_id, total, notas, estado)
-            VALUES($1, $2, $3, $4, $5, 'nuevo')
+            INSERT INTO pedidos(id, mesa_numero, usuario_mesero_id, subtotal, propina_monto, total, notas, estado)
+            VALUES($1, $2, $3, $4, $5, $6, $7, 'nuevo')
         `;
-        await runAsync(pedidoQuery, [pedido_id, mesa_numero, usuario_mesero_id, total, notas || null]);
+        await runAsync(pedidoQuery, [pedido_id, mesa_numero, usuario_mesero_id, subtotal, propinaSugerida, total, notas || null]);
 
         for (const item of items) {
             // ✅ OBTENER CONFIGURACIÓN DEL ITEM (Para saber si es directo)
@@ -153,7 +161,7 @@ router.post('/', async (req, res) => {
 // GET /api/pedidos/activos - Obtener pedidos activos
 router.get('/activos', async (req, res) => {
     try {
-        // 1. Obtener pedidos
+        // 1. Obtener pedidos con información de pagos
         const query = `
             SELECT 
                 p.id,
@@ -161,12 +169,17 @@ router.get('/activos', async (req, res) => {
                 p.usuario_mesero_id,
                 p.estado,
                 p.total,
+                p.subtotal,
+                p.propina_monto,
                 p.notas,
                 p.created_at,
                 p.started_at,
                 p.completed_at,
                 u.nombre as mesero,
-                COUNT(pi.id) as items_count
+                COUNT(pi.id) as items_count,
+                (SELECT COALESCE(SUM(t.monto), 0) 
+                 FROM transacciones t 
+                 WHERE t.pedido_id = p.id) as total_pagado
             FROM pedidos p
             LEFT JOIN pedido_items pi ON p.id = pi.pedido_id
             LEFT JOIN usuarios u ON p.usuario_mesero_id = u.id
@@ -206,6 +219,11 @@ router.get('/activos', async (req, res) => {
                     tiempoDesdeReady // Enviamos el número calculado
                 };
             });
+
+            // ✅ NUEVO: Calcular pendiente
+            const total_pagado = parseFloat(pedido.total_pagado) || 0;
+            const total = parseFloat(pedido.total) || 0;
+            pedido.pendiente = Math.max(total - total_pagado, 0);
         }
 
         res.json(pedidos);
@@ -452,19 +470,19 @@ router.put('/items/:id/serve', async (req, res) => {
 
 // GET /api/pedidos/:id/status-publico
 router.get('/:id/status-publico', async (req, res) => {
-  try {
-    const pedido = await getAsync(`
+    try {
+        const pedido = await getAsync(`
       SELECT p.*, u.nombre as mesero
       FROM pedidos p
       LEFT JOIN usuarios u ON p.usuario_mesero_id = u.id
       WHERE p.id = $1
     `, [req.params.id]);
 
-    if (!pedido) {
-      return res.status(404).json({ error: 'Pedido no encontrado' });
-    }
+        if (!pedido) {
+            return res.status(404).json({ error: 'Pedido no encontrado' });
+        }
 
-    const items = await allAsync(`
+        const items = await allAsync(`
       SELECT
         pi.id,
         pi.cantidad,
@@ -481,49 +499,49 @@ router.get('/:id/status-publico', async (req, res) => {
       ORDER BY pi.id
     `, [req.params.id]);
 
-    const totalItems = items.length;
-    const itemsServidos = items.filter(i => i.estado === 'servido').length;
-    const itemsListos = items.filter(i => i.estado === 'listo').length;
-    const itemsEnPreparacion = items.filter(i => i.estado === 'en_preparacion').length;
+        const totalItems = items.length;
+        const itemsServidos = items.filter(i => i.estado === 'servido').length;
+        const itemsListos = items.filter(i => i.estado === 'listo').length;
+        const itemsEnPreparacion = items.filter(i => i.estado === 'en_preparacion').length;
 
-    const progreso = totalItems > 0
-      ? Math.round(((itemsServidos + itemsListos) / totalItems) * 100)
-      : 0;
+        const progreso = totalItems > 0
+            ? Math.round(((itemsServidos + itemsListos) / totalItems) * 100)
+            : 0;
 
-    let tiempoTranscurrido = 0;
-    if (pedido.started_at) {
-      const inicio = new Date(pedido.started_at);
-      let fin = new Date();
-      if (['servido', 'listo_pagar', 'en_caja', 'pagado'].includes(pedido.estado)) {
-        if (pedido.delivered_at) fin = new Date(pedido.delivered_at);
-        else if (pedido.completed_at) fin = new Date(pedido.completed_at);
-      }
-      tiempoTranscurrido = Math.floor((fin - inicio) / 60000);
+        let tiempoTranscurrido = 0;
+        if (pedido.started_at) {
+            const inicio = new Date(pedido.started_at);
+            let fin = new Date();
+            if (['servido', 'listo_pagar', 'en_caja', 'pagado'].includes(pedido.estado)) {
+                if (pedido.delivered_at) fin = new Date(pedido.delivered_at);
+                else if (pedido.completed_at) fin = new Date(pedido.completed_at);
+            }
+            tiempoTranscurrido = Math.floor((fin - inicio) / 60000);
+        }
+
+        const pedidoConTiempo = { ...pedido, tiempoTranscurrido };
+
+        res.json({
+            pedido: pedidoConTiempo,
+            items: items.map(item => ({
+                ...item,
+                tiempoTranscurrido: item.started_at
+                    ? Math.floor((new Date() - new Date(item.started_at)) / 60000)
+                    : 0
+            })),
+            estadisticas: {
+                total_items: totalItems,
+                servidos: itemsServidos,
+                listos: itemsListos,
+                en_preparacion: itemsEnPreparacion,
+                pendientes: totalItems - itemsServidos - itemsListos - itemsEnPreparacion,
+                progreso_porcentaje: progreso
+            }
+        });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: error.message });
     }
-
-    const pedidoConTiempo = { ...pedido, tiempoTranscurrido };
-
-    res.json({
-      pedido: pedidoConTiempo,
-      items: items.map(item => ({
-        ...item,
-        tiempoTranscurrido: item.started_at
-          ? Math.floor((new Date() - new Date(item.started_at)) / 60000)
-          : 0
-      })),
-      estadisticas: {
-        total_items: totalItems,
-        servidos: itemsServidos,
-        listos: itemsListos,
-        en_preparacion: itemsEnPreparacion,
-        pendientes: totalItems - itemsServidos - itemsListos - itemsEnPreparacion,
-        progreso_porcentaje: progreso
-      }
-    });
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: error.message });
-  }
 });
 
 
@@ -630,19 +648,27 @@ router.post('/:id/items', async (req, res) => {
             }
         }
 
-        // Actualizar total del pedido
-        const nuevoTotal = parseFloat(pedido.total) + totalAdicional;
+        // ✅ ACTUALIZAR: Recalcular subtotal y propina
+        const nuevoSubtotal = parseFloat(pedido.subtotal || pedido.total) + totalAdicional;
+
+        // Obtener porcentaje de propina
+        const configPropina = await getAsync('SELECT valor FROM configuracion WHERE clave = $1', ['porcentaje_propina']);
+        const porcentajePropina = parseFloat(configPropina?.valor || 10);
+
+        const nuevaPropina = Math.round(nuevoSubtotal * (porcentajePropina / 100));
+        const nuevoTotal = nuevoSubtotal + nuevaPropina;
 
         // Si el pedido estaba en estado final (servido/listo), volver a en_cocina
         // para que los nuevos items aparezcan en los paneles activos
         let nuevoEstadoPedido = pedido.estado;
         if (['servido', 'listo', 'listo_pagar'].includes(pedido.estado)) {
             nuevoEstadoPedido = 'en_cocina';
-            await runAsync('UPDATE pedidos SET total = $1, estado = $2 WHERE id = $3',
-                [nuevoTotal, nuevoEstadoPedido, pedidoId]);
+            await runAsync('UPDATE pedidos SET subtotal = $1, propina_monto = $2, total = $3, estado = $4 WHERE id = $5',
+                [nuevoSubtotal, nuevaPropina, nuevoTotal, nuevoEstadoPedido, pedidoId]);
             console.log(`📋 Pedido ${pedidoId}: Estado cambiado de "${pedido.estado}" a "en_cocina" por nuevos items`);
         } else {
-            await runAsync('UPDATE pedidos SET total = $1 WHERE id = $2', [nuevoTotal, pedidoId]);
+            await runAsync('UPDATE pedidos SET subtotal = $1, propina_monto = $2, total = $3 WHERE id = $4',
+                [nuevoSubtotal, nuevaPropina, nuevoTotal, pedidoId]);
         }
 
         // Emitir evento de pedido editado
@@ -692,22 +718,22 @@ router.delete('/:id/items/:itemId', async (req, res) => {
 
         // 2) Servido: solo permitir con confirmación fuerte
         if (item.estado === 'servido' && confirmar !== 'true') {
-          return res.status(409).json({
-            error: 'Este item ya fue servido al cliente.',
-            requiereConfirmacion: true,
-            estado: item.estado,
-            mensaje: `¿Estás seguro de eliminar "${item.nombre}"? Ya fue servido.`
-          });
+            return res.status(409).json({
+                error: 'Este item ya fue servido al cliente.',
+                requiereConfirmacion: true,
+                estado: item.estado,
+                mensaje: `¿Estás seguro de eliminar "${item.nombre}"? Ya fue servido.`
+            });
         }
-    
+
         // 3) Listo: también requiere confirmación
         if (item.estado === 'listo' && confirmar !== 'true') {
-          return res.status(409).json({
-            error: 'Este item ya fue preparado.',
-            requiereConfirmacion: true,
-            estado: item.estado,
-            mensaje: `¿Estás seguro de eliminar "${item.nombre}"? Ya está listo en cocina.`
-          });
+            return res.status(409).json({
+                error: 'Este item ya fue preparado.',
+                requiereConfirmacion: true,
+                estado: item.estado,
+                mensaje: `¿Estás seguro de eliminar "${item.nombre}"? Ya está listo en cocina.`
+            });
         }
 
         if (item.estado === 'en_preparacion' && confirmar !== 'true') {

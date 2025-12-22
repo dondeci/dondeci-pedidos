@@ -128,17 +128,17 @@ export default {
   },
 
   // ============= PAGOS =============
-  registrarPago(pedido_id, usuario_facturero_id, monto, metodo_pago) {
-    return api.post('/transacciones', { pedido_id, usuario_facturero_id, monto, metodo_pago });
+  registrarPago(pedido_id, usuario_facturero_id, monto, metodo_pago, propina_final = null) {
+    return api.post('/transacciones', { pedido_id, usuario_facturero_id, monto, metodo_pago, propina_final });
   },
 
   // ============= REPORTES =============
-  getVentasHoy() {
-    return api.get('/reportes/ventas-hoy');
+  getVentasHoy(params = {}) {
+    return api.get('/reportes/ventas-hoy', { params });
   },
 
-  getPedidosHoy() {
-    return api.get('/reportes/pedidos-hoy');
+  getPedidosHoy(params = {}) {
+    return api.get('/reportes/pedidos-hoy', { params });
   },
 
   getReporteHistorico() {
@@ -178,6 +178,12 @@ export default {
 
   // Configuración
   getConfig: () => api.get('/config'),
+  updateConfig: (clave, valor) => api.put(`/config/${clave}`, { valor }),
   saveConfig: (config) => api.post('/config', config),
   getIp: () => api.get('/ip'),
+
+  // Upload
+  uploadMenuImage: (formData) => api.post('/upload/menu-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 };

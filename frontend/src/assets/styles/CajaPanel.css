@@ -597,3 +597,81 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* =========================================
+   SECCIÓN DE PROPINAS
+   ========================================= */
+.propina-section {
+    background: #fffbeb;
+    border: 2px solid #f59e0b;
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.propina-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.propina-option {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.propina-option:hover {
+    border-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.propina-option input[type="radio"] {
+    margin-right: 10px;
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    accent-color: #f59e0b;
+}
+
+.propina-option span {
+    font-weight: 500;
+    color: #374151;
+}
+
+.propina-input {
+    margin-top: 12px;
+}
+
+.total-con-propina {
+    margin-top: 16px;
+    padding: 12px;
+    background: white;
+    border-radius: 8px;
+    text-align: center;
+    border: 2px dashed #f59e0b;
+}
+
+.total-con-propina strong {
+    color: #059669;
+    font-size: 20px;
+}
+
+.text-success {
+    color: #059669 !important;
+}
+
+.info-box {
+    padding: 12px;
+    background: #eff6ff;
+    border-left: 4px solid #3b82f6;
+    border-radius: 0 6px 6px 0;
+    color: #1e40af;
+    font-weight: 500;
+    font-size: 14px;
+}
