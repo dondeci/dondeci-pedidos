@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
-    "build": "vite build",
+    "update-vercel": "node scripts/update-vercel.js",
+    "build": "npm run update-vercel && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -20,6 +21,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",
+    "dotenv": "^17.2.3",
     "terser": "^5.44.1",
     "vite": "^7.2.4",
     "vite-plugin-html": "^3.2.2",
