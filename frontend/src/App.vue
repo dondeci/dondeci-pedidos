@@ -70,15 +70,26 @@ const title = import.meta.env.VITE_APP_TITLE;
 // ✅ NUEVO: Nombre dinámico del restaurante
 const nombreRestaurante = ref(import.meta.env.VITE_APP_TITLE || 'Restaurante Demo');
 
-const cargarNombreRestaurante = async () => {
+const cargarConfiguracion = async () => {
   try {
     const res = await api.getConfig();
-    if (res.data && res.data.nombre) {
-      nombreRestaurante.value = res.data.nombre;
-      document.title = res.data.nombre; // ✅ NUEVO: Actualizar título de la ventana
+    if (res.data) {
+      // 1. Nombre
+      if (res.data.nombre) {
+        nombreRestaurante.value = res.data.nombre;
+        document.title = res.data.nombre;
+      }
+      
+      // 2. Colores
+      if (res.data.color_primario) {
+        document.documentElement.style.setProperty('--theme-color', res.data.color_primario);
+      }
+      if (res.data.color_secundario) {
+        document.documentElement.style.setProperty('--background-color', res.data.color_secundario);
+      }
     }
   } catch (err) {
-    console.error('Error cargando nombre:', err);
+    console.error('Error cargando configuración:', err);
   }
 };
 
@@ -98,7 +109,10 @@ const pedidoStore = usePedidoStore();
 onMounted(() => {
   usuarioStore.cargarUsuarioGuardado();
   pedidoStore.iniciarRealTime(); // Iniciar listeners de Socket.io
-  cargarNombreRestaurante(); // ✅ NUEVO: Cargar nombre del restaurante
+onMounted(() => {
+  usuarioStore.cargarUsuarioGuardado();
+  pedidoStore.iniciarRealTime(); // Iniciar listeners de Socket.io
+  cargarConfiguracion(); // ✅ NUEVO: Cargar config completa (nombre + colores)
   
   // Monitorear conexión
   socket.on('connect', () => {
