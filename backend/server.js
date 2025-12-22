@@ -52,7 +52,8 @@ async function initDatabase() {
                 username TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
                 nombre TEXT NOT NULL,
-                rol TEXT NOT NULL CHECK(rol IN ('admin', 'mesero', 'cocinero', 'cajero'))
+                rol TEXT NOT NULL CHECK(rol IN ('admin', 'mesero', 'cocinero', 'cajero')),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
 
@@ -64,13 +65,18 @@ async function initDatabase() {
                 categoria TEXT NOT NULL,
                 precio NUMERIC(10,2) NOT NULL,
                 tiempo_estimado INTEGER DEFAULT 15,
+                tiempo_preparacion_min INTEGER DEFAULT 15,
                 disponible BOOLEAN DEFAULT TRUE,
                 descripcion TEXT,
                 usa_inventario BOOLEAN DEFAULT FALSE,
                 stock_actual INTEGER,
                 stock_minimo INTEGER,
                 estado_inventario TEXT DEFAULT 'disponible' CHECK(estado_inventario IN ('disponible', 'poco_stock', 'no_disponible')),
-                image_url VARCHAR(500) -- ✅ MIGRACIÓN INTEGRADA
+                image_url VARCHAR(500),
+                imagen_url TEXT,
+                es_directo BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
 
@@ -88,7 +94,8 @@ async function initDatabase() {
                 id SERIAL PRIMARY KEY,
                 numero INTEGER UNIQUE NOT NULL,
                 capacidad INTEGER DEFAULT 4,
-                estado TEXT DEFAULT 'disponible' CHECK(estado IN ('disponible', 'ocupada', 'reservada'))
+                estado TEXT DEFAULT 'disponible' CHECK(estado IN ('disponible', 'ocupada', 'reservada')),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
 
@@ -131,6 +138,7 @@ async function initDatabase() {
                 completed_at TIMESTAMP,
                 served_at TIMESTAMP,
                 tiempo_real INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (pedido_id) REFERENCES pedidos(id) ON DELETE CASCADE,
                 FOREIGN KEY (menu_item_id) REFERENCES menu_items(id)
             )
@@ -150,8 +158,13 @@ async function initDatabase() {
                 fecha DATE NOT NULL,
                 total_preparaciones INTEGER DEFAULT 0,
                 tiempo_promedio INTEGER DEFAULT 0,
+                tiempo_promedio_minutos NUMERIC(5, 2) DEFAULT 0,
                 tiempo_minimo INTEGER,
+                tiempo_minimo_minutos INTEGER,
                 tiempo_maximo INTEGER,
+                tiempo_maximo_minutos INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE CASCADE,
                 UNIQUE(menu_item_id, fecha)
             )
@@ -165,6 +178,7 @@ async function initDatabase() {
                 usuario_facturero_id TEXT,
                 monto NUMERIC(10,2) NOT NULL,
                 metodo_pago TEXT NOT NULL CHECK(metodo_pago IN ('efectivo', 'tarjeta', 'transferencia', 'otro')),
+                referencia_transaccion TEXT,
                 completada BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (pedido_id) REFERENCES pedidos(id),
