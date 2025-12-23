@@ -171,7 +171,7 @@ const iniciarPedido = async (pedidoId) => {
 const iniciarItem = async (itemId) => {
   try {
     await api.iniciarItem(itemId);
-    await actualizarPedidos();
+    // ✅ No hace falta actualizar - Socket.IO lo hará automáticamente
   } catch (err) {
     console.error('Error iniciando item:', err);
     alert('Error al iniciar item');
@@ -182,7 +182,7 @@ const iniciarItem = async (itemId) => {
 const completarItem = async (itemId) => {
   try {
     await api.completarItem(itemId);
-    await actualizarPedidos();
+    // ✅ No hace falta actualizar - Socket.IO lo hará automáticamente
   } catch (err) {
     console.error('Error completando item:', err);
     alert('Error al completar item');
