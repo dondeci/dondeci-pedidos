@@ -278,6 +278,83 @@ router.get('/top-platos', async (req, res) => {
     }
 });
 
+// GET /api/reportes/propinas-hoy - Reporte de propinas del día
+router.get('/propinas-hoy', async (req, res) => {
+    try {
+        const { fecha_inicio, fecha_fin } = req.query;
 
+        const TIMEZONE = process.env.TIMEZONE || 'America/Bogota';
+        const localDate = `(p.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${TIMEZONE}')::date`;
+
+        // Si no hay filtros, usar el día actual
+        let whereClause = `WHERE ${localDate} = (now() AT TIME ZONE '${TIMEZONE}')::date 
+                           AND p.estado = 'pagado' 
+                           AND p.propina_monto > 0`;
+        let params = [];
+
+        if (fecha_inicio && fecha_fin) {
+            whereClause = `WHERE ${localDate} BETWEEN $1 AND $2 
+                           AND p.estado = 'pagado' 
+                           AND p.propina_monto > 0`;
+            params = [fecha_inicio, fecha_fin];
+        } else if (fecha_inicio) {
+            whereClause = `WHERE ${localDate} >= $1 
+                           AND p.estado = 'pagado' 
+                           AND p.propina_monto > 0`;
+            params = [fecha_inicio];
+        } else if (fecha_fin) {
+            whereClause = `WHERE ${localDate} <= $1 
+                           AND p.estado = 'pagado' 
+                           AND p.propina_monto > 0`;
+            params = [fecha_fin];
+        }
+
+        // Consulta para totales generales
+        const totalesQuery = `
+            SELECT 
+                COUNT(*) as total_pedidos_con_propina,
+                SUM(p.propina_monto) as total_propinas,
+                ROUND(AVG(p.propina_monto), 2) as promedio_propina
+            FROM pedidos p
+            ${whereClause}
+        `;
+
+        // Consulta para desglose por mesero
+        const desgloseMeserosQuery = `
+            SELECT 
+                u.nombre as mesero,
+                u.id as mesero_id,
+                COUNT(p.id) as pedidos,
+                SUM(p.propina_monto) as total_propinas,
+                ROUND(AVG(p.propina_monto), 2) as promedio_propina
+            FROM pedidos p
+            LEFT JOIN usuarios u ON p.usuario_mesero_id = u.id
+            ${whereClause}
+            GROUP BY u.id, u.nombre
+            ORDER BY total_propinas DESC
+        `;
+
+        const [totales, desgloseRes] = await Promise.all([
+            getAsync(totalesQuery, params),
+            allAsync(desgloseMeserosQuery, params)
+        ]);
+
+        res.json({
+            total_propinas: Number(totales?.total_propinas || 0),
+            promedio_propina: Number(totales?.promedio_propina || 0),
+            total_pedidos_con_propina: Number(totales?.total_pedidos_con_propina || 0),
+            desglose_meseros: desgloseRes.map(m => ({
+                mesero: m.mesero || 'Sin asignar',
+                mesero_id: m.mesero_id,
+                pedidos: Number(m.pedidos),
+                total_propinas: Number(m.total_propinas),
+                promedio_propina: Number(m.promedio_propina)
+            }))
+        });
+    } catch (error) {
+        console.error('Error en /propinas-hoy:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 export default router;

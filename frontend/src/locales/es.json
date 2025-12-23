@@ -328,6 +328,7 @@
         "server": "Cajero",
         "bill_title": "CUENTA DE COBRO",
         "payment_title": "COMPROBANTE DE PAGO",
+        "payment_history": "Historial de Pagos",
         "method": "Método",
         "qty": "Cant",
         "desc": "Desc",

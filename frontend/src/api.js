@@ -128,8 +128,21 @@ export default {
   },
 
   // ============= PAGOS =============
-  registrarPago(pedido_id, usuario_facturero_id, monto, metodo_pago, propina_final = null) {
-    return api.post('/transacciones', { pedido_id, usuario_facturero_id, monto, metodo_pago, propina_final });
+  registrarPago(arg1, usuario_facturero_id, monto, metodo_pago, propina_final = null) {
+    // Si el primer argumento es un array, es un pago múltiple
+    if (Array.isArray(arg1)) {
+      console.log('🔄 Enviando pago múltiple:', arg1);
+      return api.post('/transacciones', arg1);
+    }
+    // Si no, es un pago único con la firma tradicional
+    console.log('💰 Enviando pago único:', { pedido_id: arg1, monto, metodo_pago });
+    return api.post('/transacciones', {
+      pedido_id: arg1,
+      usuario_facturero_id,
+      monto,
+      metodo_pago,
+      propina_final
+    });
   },
 
   // ============= REPORTES =============
@@ -155,6 +168,10 @@ export default {
     return api.get('/reportes/top-platos', {
       params: { limit, ...params }
     });
+  },
+
+  getPropinaHoy(params = {}) {
+    return api.get('/reportes/propinas-hoy', { params });
   },
 
 

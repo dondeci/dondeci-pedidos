@@ -55,133 +55,16 @@
           </div>
         </div>
 
-        <!-- Formulario de Pago -->
-        <div v-if="pedidoSeleccionado" class="section pago-section">
-          <h3>{{ $t('cashier.register_payment') }}</h3>
-          
-          <div class="pago-info">
-            <div class="info-row">
-              <span>{{ $t('common.table') }}:</span>
-              <strong>{{ pedidoSeleccionado.mesa_numero }}</strong>
-            </div>
-            <div class="info-row">
-              <span>{{ $t('waiter.total') }}</span>
-              <strong>${{ Math.round(pedidoSeleccionado.total || 0).toLocaleString() }}</strong>
-            </div>
-            <div v-if="pedidoSeleccionado.total_pagado > 0" class="info-row">
-              <span>{{ $t('status.pagado') }}:</span>
-              <strong class="text-success">${{ Math.round(pedidoSeleccionado.total_pagado || 0).toLocaleString() }}</strong>
-            </div>
-            <div class="info-row">
-              <span>{{ $t('cashier.amount_to_pay') }}:</span>
-              <strong class="monto-total">${{ Math.round(saldoPendiente || pedidoSeleccionado.total || 0).toLocaleString() }}</strong>
-            </div>
-          </div>
-
-          <!-- ✅ NUEVO: Selección de Propina -->
-          <!-- Solo permitir cambiar propina en el primer pago -->
-          <div class="form-group propina-section" v-if="!pedidoSeleccionado.total_pagado || pedidoSeleccionado.total_pagado === 0">
-            <label>{{ $t('cashier.tip') }}</label>
-            <div class="propina-options">
-              <label class="propina-option">
-                <input type="radio" v-model="opcionPropina" value="sin_propina" />
-                <span>{{ $t('cashier.tip_options.none') }} (Only ${{ Math.round(pedidoSeleccionado.subtotal || pedidoSeleccionado.total || 0).toLocaleString() }})</span>
-              </label>
-              <label class="propina-option">
-                <input type="radio" v-model="opcionPropina" value="sugerida" />
-                <span>{{ $t('cashier.tip_options.suggested') }} (${{ Math.round(pedidoSeleccionado.propina_monto || 0).toLocaleString() }})</span>
-              </label>
-              <label class="propina-option">
-                <input type="radio" v-model="opcionPropina" value="personalizada" />
-                <span>{{ $t('cashier.tip_options.custom') }}</span>
-              </label>
-            </div>
-            <div v-if="opcionPropina === 'personalizada'" class="propina-input">
-              <input
-                v-model.number="propinaPersonalizada"
-                type="number"
-                placeholder="Ingrese monto de propina"
-                min="0"
-                step="100"
-                class="monto-input"
-              />
-            </div>
-            <div class="total-con-propina">
-              <strong>{{ $t('waiter.total') }}: ${{ Math.round(totalConPropina).toLocaleString() }}</strong>
-            </div>
-          </div>
-          
-          <!-- Mensaje informativo si ya hubo pago parcial -->
-          <div v-else class="form-group">
-            <div class="info-box">
-              {{ $t('cashier.tip_already_set', { amount: Math.round(saldoPendiente || 0).toLocaleString() }) }}
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>{{ $t('cashier.payment_method') }}</label>
-            <div class="payment-methods">
-              <button
-                v-for="metodo in metodoPagos"
-                :key="metodo.name"
-                @click="metodoSeleccionado = metodo.name"
-                :class="['metodo-btn', { 'metodo-active': metodoSeleccionado === metodo.name }]"
-              >
-                {{ obtenerEmojiMetodo(metodo.name) }} {{ metodo.label }}
-              </button>
-            </div>
-          </div>
-
-          <!-- ✅ MODIFICADO: Input de monto para TODOS los métodos -->
-          <div v-if="metodoSeleccionado" class="form-group">
-            <label>
-              {{ metodoSeleccionado === 'efectivo' ? $t('cashier.amount_received') : $t('cashier.amount_to_pay') }}
-            </label>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <input
-                v-model.number="montoRecibido"
-                type="number"
-                :placeholder="metodoSeleccionado === 'efectivo' ? '0.00' : `Max: ${Math.round(saldoPendiente || pedidoSeleccionado.total || 0).toLocaleString()}`"
-                min="0"
-                :max="saldoPendiente || pedidoSeleccionado.total"
-                step="100"
-                class="monto-input"
-                style="flex: 1;"
-              />
-              <button 
-                @click="montoRecibido = Math.round(saldoPendiente || pedidoSeleccionado.total || 0)"
-                class="btn btn-secondary btn-sm"
-                type="button"
-                style="white-space: nowrap;"
-              >
-                💰 Total
-              </button>
-            </div>
-            <div v-if="metodoSeleccionado === 'efectivo' && montoRecibido && montoRecibido > (saldoPendiente || pedidoSeleccionado.total)" class="cambio">
-              {{ $t('cashier.change') }} ${{ (montoRecibido - pedidoSeleccionado.total).toFixed(2) }}
-            </div>
-             <div v-if="montoRecibido && montoRecibido < pedidoSeleccionado.total" class="alerta">
-              🔹 Pago parcial, quedará saldo pendiente.
-            </div>
-
-          </div>
-
-          <div class="botones-pago">
-           <button
-            @click="procesarPago"
-            class="btn btn-success btn-full"
-            :disabled="!metodoSeleccionado || (metodoSeleccionado === 'efectivo' && (!montoRecibido || montoRecibido <= 0))"
-          >
-
-              {{ $t('cashier.confirm_payment') }}
-            </button>
-            <button
-              @click="cancelarPago"
-              class="btn btn-secondary btn-full"
-            >
-              {{ $t('cashier.cancel') }}
-            </button>
-          </div>
+        <!-- Formulario de Pago (Refactorizado) -->
+        <div v-if="pedidoSeleccionado" class="section">
+          <CajaPaymentForm 
+            :pedido="pedidoSeleccionado"
+            :metodos-pago="metodoPagos"
+            :usuario-id="usuarioStore.usuario.id"
+            :saldo-pendiente="saldoPendiente"
+            @pago-registrado="onPagoRegistrado"
+            @cancelar="cancelarPago"
+          />
         </div>
 
         <!-- Historial de Pagos -->
@@ -191,13 +74,16 @@
             {{ $t('cashier.no_payments') }}
           </div>
           <div v-else class="pagos-list">
-            <div v-for="pedido in pedidosPagadosHoy" :key="pedido.id" class="pago-item">
+            <div v-for="pedido in pedidosPagadosHoy" :key="pedido.id" :class="['pago-item', pedido.pagos_multiples ? 'pago-multiple' : '']">
               <div class="pago-info-item">
                 <span class="mesa">{{ $t('common.table') }} {{ pedido.mesa_numero }}</span>
                 <span class="monto">${{ pedido.total }}</span>
               </div>
               <div class="pago-detalles-extra">
-                <span class="metodo-pago-badge" v-if="pedido.metodo_pago">
+                <span class="metodo-pago-badge" v-if="pedido.pagos_multiples">
+                   🔄 MÚLTIPLE
+                </span>
+                <span class="metodo-pago-badge" v-else-if="pedido.metodo_pago">
                   {{ obtenerEmojiMetodo(pedido.metodo_pago) }} {{ pedido.metodo_pago.toUpperCase() }}
                 </span>
                 <span class="timestamp">{{ formatearHora(pedido.created_at) }}</span>
@@ -286,12 +172,13 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, nextTick } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { usePedidoStore } from '../stores/pedidoStore';
 import { useUsuarioStore } from '../stores/usuarioStore';
 import api from '../api';
 import { useNotificaciones } from '../composables/useNotificaciones';
 import { useI18n } from 'vue-i18n';
+import CajaPaymentForm from './CajaPaymentForm.vue';
 
 const { t } = useI18n();
 const { notificaciones, cerrarNotificacion } = useNotificaciones('facturero');
@@ -301,26 +188,18 @@ const usuarioStore = useUsuarioStore();
 
 const loading = ref(false);
 const pedidoSeleccionado = ref(null);
-const metodoSeleccionado = ref('');
-const montoRecibido = ref(null);
 const pedidosPagadosHoy = ref([]);
 const ticketData = ref(null);
 const pagoDetalle = ref(null);
-// ✅ NUEVO: Variables para manejo de propinas
-const opcionPropina = ref('sugerida'); // 'sin_propina' | 'personalizada' | 'sugerida'
-const propinaPersonalizada = ref(null);
 
-// ✅ NUEVO: Métodos de pago dinámicos
 const metodoPagos = ref([]);
 
 const cargarMetodosPago = async () => {
   try {
     const res = await api.getPaymentMethods();
-    // Filtrar solo activos
     metodoPagos.value = res.data.filter(m => m.active);
   } catch (err) {
     console.error('Error cargando métodos de pago:', err);
-    // Fallback
     metodoPagos.value = [
       { name: 'efectivo', label: 'Efectivo', is_digital: false },
       { name: 'tarjeta', label: 'Tarjeta', is_digital: true }
@@ -332,23 +211,6 @@ const pedidosListosPagar = computed(() => {
   const listos = pedidoStore.pedidosPorEstado.listo_pagar || [];
   const enCaja = pedidoStore.pedidosPorEstado.en_caja || [];
   return [...listos, ...enCaja].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-});
-const pedidosPagados = computed(() => pedidoStore.pedidosPorEstado.pagado);
-
-// ✅ NUEVO: Calcular total dinámico con propina
-const totalConPropina = computed(() => {
-  if (!pedidoSeleccionado.value) return 0;
-  
-  const subtotal = parseFloat(pedidoSeleccionado.value.subtotal || pedidoSeleccionado.value.total || 0);
-  const propinaSugerida = parseFloat(pedidoSeleccionado.value.propina_monto || 0);
-  
-  if (opcionPropina.value === 'sin_propina') {
-    return subtotal;
-  } else if (opcionPropina.value === 'personalizada') {
-    return subtotal + (parseFloat(propinaPersonalizada.value) || 0);
-  } else { // 'sugerida'
-    return subtotal + propinaSugerida;
-  }
 });
 
 // Agrupar items por nombre para mostrar cantidades consolidadas
@@ -398,20 +260,11 @@ const saldoPendiente = ref(null);
 
 const seleccionarPedido = (pedido) => {
   pedidoSeleccionado.value = pedido;
-  metodoSeleccionado.value = '';
-  montoRecibido.value = null;
-  // ✅ CORREGIDO: Usar pendiente del backend (que ya resta los pagos previos)
   saldoPendiente.value = pedido.pendiente !== undefined ? pedido.pendiente : pedido.total;
-  // ✅ NUEVO: Resetear opciones de propina
-  opcionPropina.value = 'sugerida';
-  propinaPersonalizada.value = null;
 };
-
 
 const cancelarPago = () => {
   pedidoSeleccionado.value = null;
-  metodoSeleccionado.value = '';
-  montoRecibido.value = null;
 };
 
 const obtenerEmojiMetodo = (metodo) => {
@@ -428,7 +281,7 @@ const formatearHora = (fecha) => {
   return new Date(fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-// ✅ FUNCIÓN CORREGIDA: Agrupa items para el ticket
+// ✅ Agrupa items para el ticket
 const prepararTicket = (pedido, tipo, metodo = null, extras = {}) => {
   const itemsAgrupadosParaTicket = {};
 
@@ -446,40 +299,70 @@ const prepararTicket = (pedido, tipo, metodo = null, extras = {}) => {
 
   const itemsFinales = Object.values(itemsAgrupadosParaTicket);
 
-  // ✅ CORREGIDO: Si pedido no tiene subtotal (pedidos viejos), calcularlo desde los items
   let subtotal = pedido.subtotal;
   let propinaMonto = pedido.propina_monto || 0;
   
   if (!subtotal) {
-    // Calcular subtotal sumando precio de todos los items
-    subtotal = itemsFinales.reduce((sum, item) => {
-      return sum + (item.cantidad * item.precio);
-    }, 0);
-    
-    // Calcular propina como diferencia entre total y subtotal
-    const total = parseFloat(pedido.total || 0);
-    propinaMonto = total - subtotal;
+    subtotal = itemsFinales.reduce((sum, item) => sum + (item.cantidad * item.precio), 0);
+    propinaMonto = parseFloat(pedido.total || 0) - subtotal;
   }
 
   ticketData.value = {
     tipo,
     mesa: pedido.mesa_numero,
-    subtotal: subtotal,                                     // ✅ CORREGIDO
-    propinaMonto: propinaMonto,                             // ✅ CORREGIDO
-    totalPedido: pedido.total,                              // total real del pedido
+    subtotal: subtotal,
+    propinaMonto: propinaMonto,
+    totalPedido: pedido.total,
     items: itemsFinales,
     cajero: usuarioStore.usuario.nombre,
     metodoPago: metodo,
     montoRecibido: extras.montoRecibido ?? null,
     montoAplicado: extras.montoAplicado ?? null,
     cambio: extras.cambio ?? null,
-    pagos: pedido.pagos || [] // ✅ NUEVO: Incluir historial de pagos
+    pagos: pedido.pagos || []
   };
 };
 
+const onPagoRegistrado = async (evento) => {
+    const { data, metodo, montoRecibido, montoAplicado, cambio, esMultiple } = evento;
+    const { total_pagado, pendiente } = data;
 
+    await actualizarPedidos();
 
-// ✅ FUNCIÓN CORREGIDA (Escapando etiquetas)
+    // Si se completó, imprimir ticket
+    if (pendiente <= 0) {
+        const fullOrderRes = await api.getPedido(pedidoSeleccionado.value.id);
+        const fullOrder = fullOrderRes.data;
+
+        prepararTicket(
+            fullOrder,
+            'pago',
+            esMultiple ? 'MULTIPLE' : metodo,
+            { montoRecibido, montoAplicado, cambio }
+        );
+
+        alert(t('cashier.alert_payment_registered') +
+            (esMultiple ? `\n¡Pago Múltiple completado!` : `\nPagado ahora: $${Math.round(montoAplicado).toLocaleString()}`) +
+            `\nTotal pagado: $${Math.round(total_pagado).toLocaleString()}\n` +
+            `¡Pago completado! Imprimiendo ticket...`
+        );
+
+        imprimirContenido(ticketData.value);
+        pedidoSeleccionado.value = null; // Cerrar form
+    } else {
+        alert(t('cashier.alert_payment_registered') +
+            `\nPagado ahora: $${Math.round(montoAplicado).toLocaleString()}\n` +
+            `Pendiente: $${Math.round(pendiente).toLocaleString()}`
+        );
+        // Actualizar datos del pedido seleccionado para seguir pagando
+        const pedidoActualizado = pedidosListosPagar.value.find(p => p.id === pedidoSeleccionado.value.id);
+        if (pedidoActualizado) {
+             pedidoSeleccionado.value = { ...pedidoActualizado };
+             saldoPendiente.value = pedidoActualizado.pendiente;
+        }
+    }
+};
+
 const imprimirContenido = (data) => {
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
@@ -567,7 +450,7 @@ const imprimirContenido = (data) => {
       ${data.pagos && data.pagos.length > 0 ? `
         <div class="pagos-history" style="margin-top: 10px;">
            <div class="row" style="font-weight:bold;">
-            <span>Historial de Pagos</span>
+            <span>${t('ticket.payment_history') || 'Historial de Pagos'}</span>
           </div>
           <div class="divider"></div>
           ${data.pagos.map(p => `
@@ -594,7 +477,6 @@ const imprimirContenido = (data) => {
     <\/body>
     <\/html>
   `;
-  // ⬆️ FIJATE ARRIBA: He puesto la barra invertida \ antes de las barras /
 
   printWindow.document.write(contenidoHTML);
   printWindow.document.close();
@@ -602,155 +484,15 @@ const imprimirContenido = (data) => {
 
 const pedirCuenta = async (pedido) => {
   try {
-    // 1. Preparar datos
     prepararTicket(pedido, 'cuenta');
-    
-    // 2. Imprimir usando ventana nueva (Funciona en móvil)
     imprimirContenido(ticketData.value);
-    
-    // 3. Actualizar estado
     await pedidoStore.actualizarEstadoPedido(pedido.id, 'en_caja');
-    
+    await actualizarPedidos(); 
   } catch (err) {
     console.error(err);
     alert('❌ ' + t('common.error'));
   }
 };
-
-const procesarPago = async () => {
-  if (!pedidoSeleccionado.value || !metodoSeleccionado.value) return;
-
-  const totalPedido = Number(pedidoSeleccionado.value.total);
-  const pendienteActual = saldoPendiente.value != null
-    ? Number(saldoPendiente.value)
-    : totalPedido;
-
-  let montoRecibidoEstaVez = 0;
-  let montoQueSeRegistra = 0;
-
-  // ✅ MODIFICADO: Todos los métodos pueden hacer pagos parciales
-  if (!montoRecibido.value || montoRecibido.value <= 0) {
-    alert('Ingresa un monto válido');
-    return;
-  }
-  
-  montoRecibidoEstaVez = Number(montoRecibido.value);
-  
-  // Para efectivo, puede recibir más y dar cambio
-  // Para otros métodos, solo registrar lo que se paga
-  if (metodoSeleccionado.value === 'efectivo') {
-    montoQueSeRegistra = Math.min(montoRecibidoEstaVez, pendienteActual);
-  } else {
-    // Validar que no exceda el pendiente
-    if (montoRecibidoEstaVez > pendienteActual) {
-      alert(`❌ El monto no puede exceder el pendiente: $${Math.round(pendienteActual).toLocaleString()}`);
-      return;
-    }
-    montoQueSeRegistra = montoRecibidoEstaVez;
-  }
-
-  // ✅ ACTUALIZADO: Calcular propina final SOLO si es el primer pago
-  // Si ya hubo pagos, no modificar la propina del pedido
-  let propinaFinal = null;
-  const esPrimerPago = !pedidoSeleccionado.value.total_pagado || pedidoSeleccionado.value.total_pagado === 0;
-  
-  if (esPrimerPago) {
-    if (opcionPropina.value === 'sin_propina') {
-      propinaFinal = 0;
-    } else if (opcionPropina.value === 'personalizada') {
-      propinaFinal = parseFloat(propinaPersonalizada.value) || 0;
-    } else { // 'sugerida'
-      propinaFinal = parseFloat(pedidoSeleccionado.value.propina_monto) || 0;
-    }
-  }
-  // Si no es el primer pago, propinaFinal queda en null y el backend no modifica el total
-
-  try {
-    const res = await api.registrarPago(
-      pedidoSeleccionado.value.id,
-      usuarioStore.usuario.id,
-      montoQueSeRegistra,
-      metodoSeleccionado.value,
-      propinaFinal // ✅ NUEVO: Enviar propina al backend
-    );
-
-    const { total_pagado, total_pedido, pendiente } = res.data;
-    
-    // ✅ CRÍTICO: Recargar datos del pedido desde el backend
-    await actualizarPedidos();
-    
-    // Volver a seleccionar el pedido para tener datos frescos
-    const pedidoActualizado = pedidosListosPagar.value.find(p => p.id === pedidoSeleccionado.value.id);
-    
-    console.log('🔍 Pedido actualizado desde backend:', pedidoActualizado); // DEBUG
-    
-    if (pedidoActualizado) {
-      // Actualizar TODA la referencia del pedido
-      pedidoSeleccionado.value = { ...pedidoActualizado };
-      saldoPendiente.value = pedidoActualizado.pendiente || 0;
-      
-      console.log('✅ Pedido seleccionado actualizado:', {
-        total: pedidoSeleccionado.value.total,
-        total_pagado: pedidoSeleccionado.value.total_pagado,
-        pendiente: pedidoSeleccionado.value.pendiente,
-        saldoPendiente: saldoPendiente.value
-      }); // DEBUG
-    } else {
-      console.warn('⚠️ No se encontró el pedido actualizado en la lista');
-    }
-
-    const cambio = metodoSeleccionado.value === 'efectivo'
-      ? Math.max(montoRecibidoEstaVez - montoQueSeRegistra, 0)
-      : 0;
-
-    // ✅ LOGICA DE IMPRESIÓN CORREGIDA
-    // Solo imprimir si se completó el pago (pendiente <= 0)
-    if (pendiente <= 0) {
-      // Fetch completo para tener el historial de pagos
-      const fullOrderRes = await api.getPedido(pedidoSeleccionado.value.id);
-      const fullOrder = fullOrderRes.data;
-
-      prepararTicket(
-        fullOrder,
-        'pago',
-        metodoSeleccionado.value, // Método del último pago (aunque mostramos historial)
-        {
-          montoRecibido: montoRecibidoEstaVez,
-          montoAplicado: montoQueSeRegistra,
-          cambio
-        }
-      );
-
-      alert(t('cashier.alert_payment_registered') +
-        `\nPagado ahora: $${Math.round(montoQueSeRegistra).toLocaleString()}\n` +
-        `Total pagado: $${Math.round(total_pagado).toLocaleString()}\n` +
-        `¡Pago completado! Imprimiendo ticket...`
-      );
-
-      imprimirContenido(ticketData.value);
-      
-      cancelarPago();
-      await actualizarPedidos();
-    } else {
-      // Pago parcial: Solo notificar, NO imprimir
-      alert(t('cashier.alert_payment_registered') +
-        `\nPagado ahora: $${Math.round(montoQueSeRegistra).toLocaleString()}\n` +
-        `Pendiente: $${Math.round(pendiente).toLocaleString()}`
-      );
-      
-      // Resetear form para siguiente abono
-      metodoSeleccionado.value = '';
-      montoRecibido.value = null;
-    }
-
-  } catch (err) {
-    console.error(err);
-    const msg = err.response?.data?.error || t('cashier.alert_error_payment');
-    alert('❌ ' + msg);
-    await actualizarPedidos();
-  }
-};
-
 
 const verDetallesPago = async (pedidoId) => {
   try {
@@ -768,7 +510,7 @@ const cerrarDetallePago = () => {
 
 onMounted(() => {
   actualizarPedidos();
-  cargarMetodosPago(); // ✅ NUEVO
+  cargarMetodosPago(); 
 });
 </script>
 <style src="../assets/styles/CajaPanel.css" scoped></style>

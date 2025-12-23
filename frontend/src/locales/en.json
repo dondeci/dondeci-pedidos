@@ -327,6 +327,8 @@
         "date": "Date",
         "server": "Cashier",
         "bill_title": "CHECK / BILL",
+        "payment_title": "PAYMENT RECEIPT",
+        "payment_history": "Payment History",
         "receipt_header": "PAYMENT RECEIPT",
         "method": "Method",
         "qty": "Qty",

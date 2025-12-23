@@ -47,6 +47,14 @@
               <div class="stat-value">{{ pedidosPagados.length }}</div>
               <div class="stat-label">{{ $t('admin.paid') }}</div>
             </div>
+            <div class="stat-card clickable" @click="mostrarDetallePropinas = true" style="cursor: pointer; transition: transform 0.2s;">
+              <div class="stat-icon">💰</div>
+              <div class="stat-value">${{ formatCurrency(propinasHoy.total_propinas) }}</div>
+              <div class="stat-label">Propinas Hoy</div>
+              <div class="stat-detail" style="font-size: 0.85em; margin-top: 4px; opacity: 0.8;">
+                {{ propinasHoy.total_pedidos_con_propina }} pedidos
+              </div>
+            </div>
           </div>
         </div>
 
@@ -327,6 +335,59 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal de Desglose de Propinas -->
+    <div v-if="mostrarDetallePropinas" class="modal-overlay" @click.self="mostrarDetallePropinas = false">
+      <div class="modal-detalle">
+        <div class="modal-header">
+          <h3>💰 Reporte de Propinas</h3>
+          <button @click="mostrarDetallePropinas = false" class="btn-cerrar">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="detalle-info">
+            <div class="info-row">
+              <span>Total del Día:</span>
+              <strong style="color: #2ecc71; font-size: 1.3em;">${{ formatCurrency(propinasHoy.total_propinas) }}</strong>
+            </div>
+            <div class="info-row">
+              <span>Promedio por Pedido:</span>
+              <strong>${{ formatCurrency(propinasHoy.promedio_propina) }}</strong>
+            </div>
+            <div class="info-row">
+              <span>Pedidos con Propina:</span>
+              <strong>{{ propinasHoy.total_pedidos_con_propina }}</strong>
+            </div>
+          </div>
+
+          <div class="detalle-items" style="margin-top: 20px;">
+            <h4>Desglose por Mesero</h4>
+            <div v-if="propinasHoy.desglose_meseros && propinasHoy.desglose_meseros.length > 0" class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Mesero</th>
+                    <th>Pedidos</th>
+                    <th>Total Propinas</th>
+                    <th>Promedio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="mesero in propinasHoy.desglose_meseros" :key="mesero.mesero_id">
+                    <td><strong>{{ mesero.mesero }}</strong></td>
+                    <td class="text-center">{{ mesero.pedidos }}</td>
+                    <td class="text-center"><strong>${{ formatCurrency(mesero.total_propinas) }}</strong></td>
+                    <td class="text-center">${{ formatCurrency(mesero.promedio_propina) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else class="empty-state">
+              No hay propinas registradas para el período seleccionado
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -362,6 +423,15 @@ const filtroFechaFin = ref('');
 // Top Platos
 const topPlatos = ref([]);
 const loadingTopPlatos = ref(false);
+
+// Propinas
+const propinasHoy = ref({
+  total_propinas: 0,
+  promedio_propina: 0,
+  total_pedidos_con_propina: 0,
+  desglose_meseros: []
+});
+const mostrarDetallePropinas = ref(false);
 
 const ventasTotal = computed(() => {
   return detallesVentas.value
@@ -502,12 +572,36 @@ const cargarTopPlatos = async () => {
   }
 };
 
+
+// Cargar propinas del día
+const cargarPropinaDelDia = async () => {
+  try {
+    const params = {};
+    if (filtroFechaInicio.value) params.fecha_inicio = filtroFechaInicio.value;
+    if (filtroFechaFin.value) params.fecha_fin = filtroFechaFin.value;
+    
+    const res = await api.getPropinaHoy(params);
+    propinasHoy.value = res.data;
+  } catch (err) {
+    console.error('Error cargando propinas:', err);
+  }
+};
+
+// Helper para formatear moneda
+const formatCurrency = (amount) => {
+  return Number(amount || 0).toLocaleString('es-CO', { 
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0 
+  });
+};
+
 // Modificar el botón de filtrar para que actualice AMBAS tablas
 const aplicarFiltros = () => {
     // ✅ CORREGIDO: Recargar TODAS las estadísticas con los filtros
     cargarReportes();
     cargarTiemposCocina();
     cargarTopPlatos();
+    cargarPropinaDelDia();
 };
 
 
@@ -560,6 +654,7 @@ onMounted(() => {
   cargarReportes();
   cargarTiemposCocina(); // Cargar estadísticas de tiempos
   cargarTopPlatos(); // Cargar top platos
+  cargarPropinaDelDia(); // Cargar propinas
   setupRealTime();
 });
 
