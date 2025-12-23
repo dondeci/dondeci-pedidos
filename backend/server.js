@@ -1,7 +1,7 @@
 process.env.TZ = 'America/Bogota'; // ✅ CONFIGURAR TIMEZONE PARA COLOMBIA (UTC-5)
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import 'dotenv/config';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import pool, { runAsync, getAsync, allAsync } from './config/db.js';
@@ -19,9 +19,10 @@ import transaccionesRoutes from './routes/transacciones.js';
 import uploadRoutes from './routes/upload.js';
 import manifestRoutes from './routes/manifest.js';
 import iconsRoutes from './routes/icons.js';
-import wellKnownRoutes from './routes/well-known.js'; // ✅ NUEVO
+import wellKnownRoutes from './routes/well-known.js';
+import configItemsRoutes from './routes/configItems.js'; // ✅ NUEVO
 
-dotenv.config();
+// dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
@@ -98,6 +99,57 @@ async function initDatabase() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+
+        // ✅ NUEVO: Tabla de Categorías Dinámicas
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS categories (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100) UNIQUE NOT NULL,
+                active BOOLEAN DEFAULT TRUE,
+                display_order INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // ✅ NUEVO: Poblar categorías iniciales si está vacía
+        const catCount = await pool.query('SELECT COUNT(*) FROM categories');
+        if (parseInt(catCount.rows[0].count) === 0) {
+            console.log('📥 Poblando categorías iniciales...');
+            await pool.query(`
+                INSERT INTO categories (name, display_order) VALUES 
+                ('Platos Fuertes', 1),
+                ('Entradas', 2),
+                ('Bebidas', 3),
+                ('Postres', 4),
+                ('Adicionales', 5)
+            `);
+        }
+
+        // ✅ NUEVO: Tabla de Métodos de Pago Dinámicos
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS payment_methods (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(50) UNIQUE NOT NULL,
+                label VARCHAR(100),
+                active BOOLEAN DEFAULT TRUE,
+                is_digital BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // ✅ NUEVO: Poblar métodos de pago iniciales si está vacía
+        const pmCount = await pool.query('SELECT COUNT(*) FROM payment_methods');
+        if (parseInt(pmCount.rows[0].count) === 0) {
+            console.log('📥 Poblando métodos de pago iniciales...');
+            await pool.query(`
+                INSERT INTO payment_methods (name, label, is_digital) VALUES 
+                ('efectivo', 'Efectivo', FALSE),
+                ('tarjeta', 'Tarjeta Débito/Crédito', TRUE),
+                ('nequi', 'Nequi', TRUE),
+                ('daviplata', 'DaviPlata', TRUE),
+                ('transferencia', 'Transferencia Bancaria', TRUE)
+            `);
+        }
 
         // Crear tabla de pedidos
         await pool.query(`
@@ -177,7 +229,7 @@ async function initDatabase() {
                 pedido_id TEXT NOT NULL,
                 usuario_facturero_id TEXT,
                 monto NUMERIC(10,2) NOT NULL,
-                metodo_pago TEXT NOT NULL CHECK(metodo_pago IN ('efectivo', 'tarjeta', 'transferencia', 'otro')),
+                metodo_pago TEXT NOT NULL, -- ✅ CHECK constraint eliminado para permitir dinámicos
                 referencia_transaccion TEXT,
                 completada BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -185,6 +237,14 @@ async function initDatabase() {
                 FOREIGN KEY (usuario_facturero_id) REFERENCES usuarios(id)
             )
         `);
+
+        // 🔄 MIGRACIONES AUTOMÁTICAS: TRANSACCIONES
+        // Intentar eliminar el constraint si existe (nombre por defecto suele ser transacciones_metodo_pago_check)
+        try {
+            await pool.query(`ALTER TABLE transacciones DROP CONSTRAINT IF EXISTS transacciones_metodo_pago_check`);
+        } catch (e) {
+            console.log('Nota: No se pudo eliminar constraint de transacciones (puede que no exista o tenga otro nombre)');
+        }
 
         // Crear tabla de configuración
         await pool.query(`
@@ -245,6 +305,10 @@ app.use('/api/upload', uploadRoutes); // ✅ NUEVO
 app.use('/api/manifest', manifestRoutes); // ✅ NUEVO - Manifest dinámico
 app.use('/api/icons', iconsRoutes); // ✅ NUEVO - Iconos dinámicos
 app.use('/api/well-known', wellKnownRoutes); // ✅ Well-known dinámico
+
+
+// Rutas de administración de configuración (Categorías y Métodos de Pago)
+app.use('/api', configItemsRoutes);
 
 // ============= CONFIGURACIÓN =============
 app.get('/api/config', async (req, res) => {

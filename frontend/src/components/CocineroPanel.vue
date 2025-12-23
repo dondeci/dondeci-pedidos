@@ -1,12 +1,12 @@
 <template>
   <div class="cocinero-panel">
     <div class="panel-header">
-      <h2>👨‍🍳 Panel de Cocina</h2>
+      <h2>👨‍🍳 {{ $t('kitchen.title') }}</h2>
       <div class="header-info">
         <span class="badge" :class="{ 'badge-alert': pedidosNuevos.length > 0 }">
-          🆕 {{ pedidosNuevos.length }} nuevos
+          🆕 {{ pedidosNuevos.length }} {{ $t('kitchen.new_orders') }}
         </span>
-        <span class="badge">🍳 {{ pedidosEnCocina.length }} en preparación</span>
+        <span class="badge">🍳 {{ pedidosEnCocina.length }} {{ $t('kitchen.cooking') }}</span>
         <button @click="actualizarPedidos" class="btn btn-secondary" :disabled="loading">
           🔄
         </button>
@@ -14,25 +14,25 @@
     </div>
 
     <div class="panel-content">
-      <div v-if="loading" class="loading">Cargando pedidos...</div>
+      <div v-if="loading" class="loading">{{ $t('common.loading') }}</div>
 
       <template v-else>
         <!-- Pedidos Nuevos -->
         <div class="section">
-          <h3>🆕 Pedidos Nuevos</h3>
+          <h3>🆕 {{ $t('kitchen.new_orders') }}</h3>
           <div v-if="pedidosNuevos.length === 0" class="empty-state">
-            Sin pedidos nuevos
+            {{ $t('kitchen.empty_new') }}
           </div>
           <div v-else class="pedidos-columns">
             <div v-for="pedido in pedidosNuevos" :key="pedido.id" class="pedido-card">
               <div class="card-header">
-                <span class="mesa-num">🪑 Mesa {{ pedido.mesa_numero }}</span>
-                <span class="mesero-info">👤 {{ pedido.mesero || 'Sin asignar' }}</span>
+                <span class="mesa-num">🪑 {{ $t('common.table') }} {{ pedido.mesa_numero }}</span>
+                <span class="mesero-info">👤 {{ pedido.mesero || $t('common.unassigned') }}</span>
                 <button
                   @click="iniciarPedido(pedido.id)"
                   class="btn btn-warning btn-small"
                 >
-                  Iniciar
+                  {{ $t('kitchen.start') }}
                 </button>
               </div>
               <div class="items-list">
@@ -48,15 +48,15 @@
 
         <!-- Pedidos en Preparación -->
         <div class="section">
-          <h3>🍳 En Preparación</h3>
+          <h3>🍳 {{ $t('kitchen.cooking') }}</h3>
           <div v-if="pedidosEnCocina.length === 0" class="empty-state">
-            Sin pedidos en preparación
+            {{ $t('kitchen.empty_cooking') }}
           </div>
           <div v-else class="pedidos-columns">
             <div v-for="pedido in pedidosEnCocina" :key="pedido.id" class="pedido-card pedido-cooking">
               <div class="card-header">
-                <span class="mesa-num">🪑 Mesa {{ pedido.mesa_numero }}</span>
-                <span class="mesero-info">👤 {{ pedido.mesero || 'Sin asignar' }}</span>
+                <span class="mesa-num">🪑 {{ $t('common.table') }} {{ pedido.mesa_numero }}</span>
+                <span class="mesero-info">👤 {{ pedido.mesero || $t('common.unassigned') }}</span>
               </div>
               
               <!-- Items individuales (ahora cada uno es un registro separado) -->
@@ -69,12 +69,12 @@
                   <div class="item-info-row">
                     <span class="item-nombre">{{ item.nombre }}</span>
                     <div class="item-estado-badge">
-                      <span v-if="!item.estado || item.estado === 'pendiente'">⚪ Pendiente</span>
+                      <span v-if="!item.estado || item.estado === 'pendiente'">⚪ {{ $t('kitchen.item_pending') }}</span>
                       <span v-else-if="item.estado === 'en_preparacion'" class="timer">
                         🟡 {{ getTiempoTranscurrido(item.started_at) }}
                       </span>
-                      <span v-else-if="item.estado === 'listo'">🟢 Listo</span>
-                      <span v-else-if="item.estado === 'servido'">✅ Servido</span>
+                      <span v-else-if="item.estado === 'listo'">🟢 {{ $t('kitchen.item_ready') }}</span>
+                      <span v-else-if="item.estado === 'servido'">✅ {{ $t('kitchen.item_served') }}</span>
                     </div>
                   </div>
                   
@@ -84,20 +84,20 @@
                       @click="iniciarItem(item.id)"
                       class="btn-item btn-start"
                     >
-                      Iniciar
+                      {{ $t('kitchen.start') }}
                     </button>
                     <button
                       v-else-if="item.estado === 'en_preparacion'"
                       @click="completarItem(item.id)"
                       class="btn-item btn-complete"
                     >
-                      Completar
+                      {{ $t('kitchen.complete') }}
                     </button>
                     <span v-else-if="item.estado === 'listo'" class="waiting-text">
-                      Esperando mesero...
+                      {{ $t('kitchen.wait_waiter') }}
                     </span>
                     <span v-else-if="item.estado === 'servido'" class="served-text">
-                      ✓ Servido
+                      ✓ {{ $t('kitchen.item_served') }}
                     </span>
                   </div>
                 </div>

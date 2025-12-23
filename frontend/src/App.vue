@@ -30,8 +30,9 @@
               </span>
             </div>
             <div class="navbar-right">
+              <LanguageSwitcher />
               <span class="usuario-nombre">{{ usuarioStore.usuario.nombre }}</span>
-              <button @click="logout" class="btn btn-logout">Cerrar sesión</button>
+              <button @click="logout" class="btn btn-logout">{{ $t('common.logout') }}</button>
             </div>
           </div>
         </nav>
@@ -63,7 +64,11 @@ import PedidoStatus from './components/PedidoStatus.vue';
 import CuentaView from './views/CuentaView.vue';
 
 import socket from './socket';
-import api from './api'; // ✅ NUEVO
+import api from './api'; 
+import LanguageSwitcher from './components/LanguageSwitcher.vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const title = import.meta.env.VITE_APP_TITLE;
 
@@ -140,13 +145,9 @@ const logout = () => {
 };
 
 const obtenerNombreRol = (rol) => {
-  const roles = {
-    mesero: '👨‍💼 Mesero',
-    cocinero: '👨‍🍳 Cocinero',
-    facturero: '💰 Facturero',
-    admin: '👨‍💻 Administrador'
-  };
-  return roles[rol] || rol;
+  // Return translation key directly if possible, or fallback
+  // The template can handle the translation: $t('roles.' + rol)
+  return t('roles.' + rol) || rol;
 };
 </script>
 

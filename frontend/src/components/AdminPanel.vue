@@ -9,112 +9,112 @@
     <!-- Vista Principal del Dashboard -->
     <div v-else class="dashboard-view">
       <div class="panel-header">
-        <h2>📊 Panel Administrativo</h2>
+        <h2>📊 {{ $t('admin.title') }}</h2>
         <div class="header-actions">
           <button @click="mostrarEditor = true" class="btn btn-primary">
-            🛠️ Editor
+            🛠️ {{ $t('admin.editor') }}
           </button>
           <button @click="mostrarUsuarios = true" class="btn btn-primary">
-            👥 Usuarios
+            👥 {{ $t('admin.users') }}
           </button>
           <button @click="cargarReportes" class="btn btn-secondary" :disabled="loading">
-            🔄 Actualizar
+             {{ $t('cashier.update') }}
           </button>
         </div>
       </div>
     </div>
 
       <div class="panel-content">
-        <div v-if="loading" class="loading">Cargando reportes...</div>
+        <div v-if="loading" class="loading">{{ $t('admin.loading_reports') }}</div>
 
         <template v-else>
         <!-- Estadísticas Diarias -->
         <div class="section">
-          <h3>📈 Estadísticas del Día</h3>
+          <h3>📈 {{ $t('admin.daily_stats') }}</h3>
           <div class="stats-grid">
             <div class="stat-card">
               <div class="stat-icon">💵</div>
               <div class="stat-value">${{ ventasTotal }}</div>
-              <div class="stat-label">Total Ventas</div>
+              <div class="stat-label">{{ $t('admin.total_sales') }}</div>
             </div>
             <div class="stat-card">
               <div class="stat-icon">📦</div>
               <div class="stat-value">{{ pedidosHoy.length }}</div>
-              <div class="stat-label">Pedidos</div>
+              <div class="stat-label">{{ $t('admin.orders') }}</div>
             </div>
             <div class="stat-card">
               <div class="stat-icon">✅</div>
               <div class="stat-value">{{ pedidosPagados.length }}</div>
-              <div class="stat-label">Pagados</div>
+              <div class="stat-label">{{ $t('admin.paid') }}</div>
             </div>
           </div>
         </div>
 
         <!-- BARRA DE FILTROS -->
         <div class="section filters-section">
-          <h3>📅 Filtros de Reporte</h3>
+          <h3>📅 {{ $t('admin.report_filters') }}</h3>
           <div class="filters-row">
             <div class="filter-group">
-              <label>Desde:</label>
+              <label>{{ $t('admin.from') }}:</label>
               <input type="date" v-model="filtroFechaInicio" class="input-date" />
             </div>
             <div class="filter-group">
-              <label>Hasta:</label>
+              <label>{{ $t('admin.to') }}:</label>
               <input type="date" v-model="filtroFechaFin" class="input-date" />
             </div>
             <button @click="aplicarFiltros" class="btn btn-primary">
-              🔎 Aplicar Filtros
+              🔎 {{ $t('admin.apply_filters') }}
             </button>
             <button @click="limpiarFiltros" class="btn btn-secondary">
-              🧹 Limpiar
+              🧹 {{ $t('admin.clear') }}
             </button>
           </div>
         </div>
         <!-- Desglose por Método de Pago -->
         <div class="section">
-          <h3>💳 Métodos de Pago</h3>
+          <h3>💳 {{ $t('admin.payment_methods') }}</h3>
           <div class="metodos-grid">
             <div v-for="metodo in detallesVentas" :key="metodo.metodo_pago" class="metodo-card">
               <div class="metodo-header">
-                <span class="metodo-nombre">{{ metodo.metodo_pago.toUpperCase() }}</span>
-                <span class="metodo-cantidad">{{ metodo.cantidad }} transacciones</span>
+                <span class="metodo-nombre">{{ $te('cashier.methods.' + metodo.metodo_pago) ? $t('cashier.methods.' + metodo.metodo_pago) : metodo.metodo_pago.toUpperCase() }}</span>
+                <span class="metodo-cantidad">{{ metodo.cantidad }} {{ $t('admin.transactions') }}</span>
               </div>
               <div class="metodo-total">${{ Number(metodo.total).toFixed(2) }}</div>
             </div>
           </div>
         </div>
         <div class="section">
-          <h3>📱 Herramientas</h3>
+          <h3>📱 {{ $t('admin.tools') }}</h3>
           <button @click="mostrarGeneradorQR = !mostrarGeneradorQR" class="btn btn-secondary">
-            📱 {{ mostrarGeneradorQR ? 'Ocultar' : 'Mostrar' }} Generador de QR
+            📱 {{ mostrarGeneradorQR ? $t('admin.hide_qr') : $t('admin.show_qr') }}
           </button>
           <GeneradorQR v-if="mostrarGeneradorQR" />
         </div>
 
         <!-- Reporte Histórico -->
         <div class="section">
-          <h3>📊 Reporte Histórico (Últimos 30 Días)</h3>
+          <h3>📊 {{ $t('admin.historical_report') }}</h3>
           
           <!-- Total Acumulado -->
           <div class="total-acumulado">
             <div class="total-card">
-              <div class="total-label">Total Acumulado</div>
+              <div class="total-label">{{ $t('admin.total_accumulated') }}</div>
               <div class="total-value">${{ Number(totalAcumulado.total_acumulado).toFixed(2) || '0.00' }}</div>
-              <div class="total-subtitle">{{ totalAcumulado.total_transacciones || 0 }} transacciones</div>
+              <div class="total-subtitle">{{ totalAcumulado.total_transacciones || 0 }} {{ $t('admin.transactions') }}</div>
             </div>
           </div>
           
           <!-- Tabla de Ventas por Día -->
           <div v-if="ventasPorDia.length === 0" class="empty-state">
-            Sin datos históricos
+            {{ $t('admin.no_history') }}
           </div>
           <div v-else class="tabla-historico">
             <table>
               <thead>
                 <tr>
-                  <th>Fecha</th>
-                  <th>Transacciones</th>
-                  <th>Total</th>
+                  <th>{{ $t('editor.tables.date') || 'Fecha' }}</th>
+                  <th>{{ $t('admin.transactions') }}</th>
+                  <th>{{ $t('waiter.total') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -131,21 +131,21 @@
 
         <!-- Detalle de Pedidos -->
         <div class="section">
-          <h3>📋 Pedidos Día</h3>
+          <h3>📋 {{ $t('admin.daily_orders') }}</h3>
           <div v-if="pedidosHoy.length === 0" class="empty-state">
-            Sin pedidos hoy
+            {{ $t('admin.no_orders_today') }}
           </div>
           <div v-else class="tabla-pedidos">
             <table>
               <thead>
                 <tr>
-                  <th>Hora</th>
-                  <th>Mesa</th>
-                  <th>Mesero</th>
+                  <th>{{ $t('admin.hour') }}</th>
+                  <th>{{ $t('waiter.table') }}</th>
+                  <th>{{ $t('common.waiter') || 'Mesero' }}</th>
                   <th>Items</th>
-                  <th>Total</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
+                  <th>{{ $t('waiter.total') }}</th>
+                  <th>{{ $t('common.status') || 'Estado' }}</th>
+                  <th>{{ $t('common.actions') || 'Acciones' }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -157,12 +157,12 @@
                   <td>${{ pedido.total }}</td>
                   <td>
                     <span :class="['estado-badge', `estado-${pedido.estado}`]">
-                      {{ pedido.estado.replace('_', ' ').toUpperCase() }}
+                      {{ $t('status.' + pedido.estado) || pedido.estado.toUpperCase() }}
                     </span>
                   </td>
                   <td>
                     <button @click="verDetallesPedido(pedido.id)" class="btn btn-sm btn-info">
-                      👁️ Ver
+                     {{ $t('cashier.view') }}
                     </button>
                   </td>
                 </tr>
@@ -173,20 +173,20 @@
 
         <!-- Tiempos de Cocina -->
         <div class="section">
-          <h3>⏱️ Tiempos de Cocina</h3>
+          <h3>⏱️ {{ $t('admin.kitchen_times') }}</h3>
           
-          <div v-if="loadingTiempos" class="loading-small">Cargando estadísticas...</div>
+          <div v-if="loadingTiempos" class="loading-small">{{ $t('common.loading') }}</div>
           
           <div v-else-if="tiemposCocina.length > 0" class="table-container">
             <table class="data-table">
               <thead>
                 <tr>
                   <th>Item</th>
-                  <th>Categoría</th>
-                  <th>Preparaciones</th>
-                  <th>Promedio</th>
-                  <th>Estimado</th>
-                  <th>Diferencia</th>
+                  <th>{{ $t('editor.form.category') }}</th>
+                  <th>{{ $t('admin.preparations') }}</th>
+                  <th>{{ $t('admin.average') }}</th>
+                  <th>{{ $t('admin.estimated') }}</th>
+                  <th>{{ $t('admin.difference') }}</th>
                   <th>Min/Max</th>
                 </tr>
               </thead>
@@ -211,25 +211,25 @@
           </div>
           
           <div v-else class="empty-state">
-            No hay estadísticas de tiempos para el período seleccionado
+            {{ $t('admin.no_stats') }}
           </div>
         </div>
                 <!-- Top Platos Más Pedidos -->
         <div class="section">
-          <h3>🏆 Top Platos Más Pedidos</h3>
+          <h3>🏆 {{ $t('admin.top_dishes') }}</h3>
           
-          <div v-if="loadingTopPlatos" class="loading-small">Cargando top platos...</div>
+          <div v-if="loadingTopPlatos" class="loading-small">{{ $t('common.loading') }}</div>
           
           <div v-else-if="topPlatos && topPlatos.length > 0" class="table-container">
             <table class="data-table">
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Plato</th>
-                  <th>Categoría</th>
-                  <th>Total Pedidos</th>
-                  <th>Ingresos Totales</th>
-                  <th>Precio Unitario</th>
+                  <th>{{ $t('admin.dish') }}</th>
+                  <th>{{ $t('editor.form.category') }}</th>
+                  <th>{{ $t('admin.total_orders') }}</th>
+                  <th>{{ $t('admin.total_income') }}</th>
+                  <th>{{ $t('admin.unit_price') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -251,7 +251,7 @@
           </div>
           
           <div v-else class="empty-state">
-            No hay datos de platos pedidos
+            {{ $t('admin.no_stats') }}
           </div>
         </div>
       </template>
@@ -261,33 +261,45 @@
     <div v-if="pedidoDetalle" class="modal-overlay" @click.self="cerrarDetalle">
       <div class="modal-detalle">
         <div class="modal-header">
-          <h3>📋 Detalles del Pedido</h3>
+          <h3>📋 {{ $t('admin.order_details') }}</h3>
           <button @click="cerrarDetalle" class="btn-cerrar">✕</button>
         </div>
         <div class="modal-body">
           <div class="detalle-info">
             <div class="info-row">
-              <span>Mesa:</span>
+              <span>{{ $t('waiter.table') }}:</span>
               <strong>{{ pedidoDetalle.mesa_numero }}</strong>
             </div>
             <div class="info-row">
-              <span>Estado:</span>
+              <span>{{ $t('common.status') }}:</span>
               <span :class="['estado-badge', `estado-${pedidoDetalle.estado}`]">
-                {{ pedidoDetalle.estado.replace('_', ' ').toUpperCase() }}
+                {{ $t('status.' + pedidoDetalle.estado) || pedidoDetalle.estado.toUpperCase() }}
               </span>
             </div>
             <div class="info-row">
-              <span>Hora:</span>
+              <span>{{ $t('admin.hour') }}:</span>
               <strong>{{ formatearHora(pedidoDetalle.created_at) }}</strong>
             </div>
-            <div class="info-row" v-if="pedidoDetalle.metodo_pago">
-              <span>Método de Pago:</span>
-              <strong>{{ pedidoDetalle.metodo_pago.toUpperCase() }}</strong>
+            
+             <!-- Historial de Pagos Agrupados -->
+             <div class="info-row" v-if="pedidoDetalle.pagos && pedidoDetalle.pagos.length > 0">
+               <div style="width: 100%;">
+                 <span><strong>{{ $t('admin.transactions') }}:</strong></span>
+                 <ul style="list-style: none; padding: 0; margin-top: 5px;">
+                   <li v-for="(pago, pIndex) in pedidoDetalle.pagos" :key="pIndex" style="font-size: 0.9em; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                     <span>
+                       {{ formatearHora(pago.created_at) }} - 
+                       {{ $te('cashier.methods.' + pago.metodo_pago) ? $t('cashier.methods.' + pago.metodo_pago) : pago.metodo_pago.toUpperCase() }}
+                     </span>
+                     <strong>${{ Number(pago.monto).toLocaleString() }}</strong>
+                   </li>
+                 </ul>
+               </div>
             </div>
           </div>
 
           <div class="detalle-items">
-            <h4>Items del Pedido</h4>
+            <h4>{{ $t('waiter.order_items') }}</h4>
             <div class="items-tabla">
               <div class="item-row header-row">
                 <span>Cant.</span>
@@ -305,7 +317,11 @@
           </div>
 
           <div class="detalle-total">
-            <span>TOTAL:</span>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9em;">
+              <span>{{ $t('ticket.tip') }}:</span>
+              <span>${{ Number(pedidoDetalle.propina_monto || 0).toLocaleString() }}</span>
+            </div>
+            <span>{{ $t('waiter.total').toUpperCase() }}</span>
             <strong>${{ pedidoDetalle.total }}</strong>
           </div>
         </div>
@@ -321,6 +337,9 @@ import socket from '../socket';
 import GeneradorQR from './GeneradorQR.vue';
 import AdminUsers from './AdminUsers.vue';
 import EditorPanel from './EditorPanel.vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const mostrarGeneradorQR = ref(false);
 const mostrarUsuarios = ref(false);
@@ -409,7 +428,7 @@ const cargarReportes = async () => {
 };
 
 const formatearFecha = (fecha) => {
-  return new Date(fecha).toLocaleDateString('es-CO', {
+  return new Date(fecha).toLocaleDateString(t('common.locale_code') || 'es-CO', {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
@@ -417,7 +436,7 @@ const formatearFecha = (fecha) => {
 };
 
 const formatearHora = (timestamp) => {
-  return new Date(timestamp).toLocaleTimeString('es-CO', {
+  return new Date(timestamp).toLocaleTimeString(t('common.locale_code') || 'es-CO', {
     hour: '2-digit',
     minute: '2-digit'
   });
@@ -429,7 +448,7 @@ const verDetallesPedido = async (pedidoId) => {
     pedidoDetalle.value = response.data;
   } catch (err) {
     console.error('Error cargando detalles:', err);
-    alert('❌ Error al cargar detalles del pedido');
+    alert('❌ ' + t('common.error'));
   }
 };
 

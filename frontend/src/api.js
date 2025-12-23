@@ -176,6 +176,34 @@ export default {
     return api.post('/imprimir/pago', { pedido_id, metodo_pago, monto });
   },
 
+  // ============= CATEGORÍAS =============
+  getCategories() {
+    return api.get('/categories');
+  },
+  createCategory(data) {
+    return api.post('/categories', data);
+  },
+  updateCategory(id, data) {
+    return api.put(`/categories/${id}`, data);
+  },
+  deleteCategory(id) {
+    return api.delete(`/categories/${id}`);
+  },
+
+  // ============= MÉTODOS DE PAGO =============
+  getPaymentMethods() {
+    return api.get('/payment-methods');
+  },
+  createPaymentMethod(data) {
+    return api.post('/payment-methods', data);
+  },
+  updatePaymentMethod(id, data) {
+    return api.put(`/payment-methods/${id}`, data);
+  },
+  deletePaymentMethod(id) {
+    return api.delete(`/payment-methods/${id}`);
+  },
+
   // Configuración
   getConfig: () => api.get('/config'),
   updateConfig: (clave, valor) => api.put(`/config/${clave}`, { valor }),

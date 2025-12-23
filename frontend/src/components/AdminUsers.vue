@@ -1,47 +1,47 @@
 <template>
   <div class="admin-users">
     <div class="header">
-      <h2>👥 Gestión de Usuarios</h2>
-      <button @click="$emit('volver')" class="btn-volver">← Volver al Panel</button>
+      <h2>👥 {{ $t('admin.users_management') }}</h2>
+      <button @click="$emit('volver')" class="btn-volver">← {{ $t('admin.back_to_panel') }}</button>
     </div>
 
     <!-- Formulario de Creación -->
     <div class="section create-user-section">
-      <h3>Nuevo Usuario</h3>
+      <h3>{{ $t('admin.new_user') }}</h3>
       <form @submit.prevent="crearUsuario" class="create-form">
         
         <!-- Input 1 -->
         <div class="form-group">
-          <label>Nombre Completo</label>
+          <label>{{ $t('admin.full_name') }}</label>
           <input v-model="newUser.nombre" type="text" required placeholder="Ej: Juan Pérez" />
         </div>
 
         <!-- Input 2 -->
         <div class="form-group">
-          <label>Usuario</label>
+          <label>{{ $t('login.username') }}</label>
           <input v-model="newUser.username" type="text" required placeholder="Ej: juanp" />
         </div>
 
         <!-- Input 3 -->
         <div class="form-group">
-          <label>Contraseña</label>
+          <label>{{ $t('login.password') }}</label>
           <input v-model="newUser.password" type="password" required placeholder="••••••" />
         </div>
 
         <!-- Input 4 -->
         <div class="form-group">
-          <label>Rol</label>
+          <label>{{ $t('admin.users_role') }}</label>
           <select v-model="newUser.rol" required>
-            <option value="mesero">Mesero</option>
-            <option value="cocinero">Cocinero</option>
-            <option value="facturero">Facturero/Caja</option>
-            <option value="admin">Administrador</option>
+            <option value="mesero">{{ $t('roles.mesero') }}</option>
+            <option value="cocinero">{{ $t('roles.cocinero') }}</option>
+            <option value="facturero">{{ $t('roles.facturero') }}</option>
+            <option value="admin">{{ $t('roles.admin') }}</option>
           </select>
         </div>
         
         <!-- Botón (ocupará todo el ancho) -->
         <button type="submit" class="btn-crear" :disabled="loading">
-          {{ loading ? 'Creando...' : '➕ Crear Usuario' }}
+          {{ loading ? $t('common.loading') : '➕ ' + $t('common.create') }}
         </button>
       </form>
     </div>
@@ -49,18 +49,18 @@
 
     <!-- Lista de Usuarios -->
     <div class="section users-list-section">
-      <h3>Usuarios Registrados</h3>
-      <div v-if="loadingList" class="loading">Cargando usuarios...</div>
-      <div v-else-if="usuarios.length === 0" class="empty">No hay usuarios registrados</div>
+      <h3>{{ $t('admin.users_registered') }}</h3>
+      <div v-if="loadingList" class="loading">{{ $t('common.loading') }}</div>
+      <div v-else-if="usuarios.length === 0" class="empty">{{ $t('admin.no_users') }}</div>
       
       <div v-else class="table-container">
         <table>
           <thead>
             <tr>
-              <th>Nombre</th>
-              <th>Usuario</th>
-              <th>Rol</th>
-              <th>Acciones</th>
+              <th>{{ $t('editor.form.name') }}</th>
+              <th>{{ $t('login.username') }}</th>
+              <th>{{ $t('admin.users_role') || 'Rol' }}</th>
+              <th>{{ $t('common.actions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -68,7 +68,7 @@
               <td>{{ user.nombre }}</td>
               <td>{{ user.username }}</td>
               <td>
-                <span :class="['rol-badge', user.rol]">{{ user.rol.toUpperCase() }}</span>
+                <span :class="['rol-badge', user.rol]">{{ $t('roles.' + user.rol) }}</span>
               </td>
               <td>
                 <button 

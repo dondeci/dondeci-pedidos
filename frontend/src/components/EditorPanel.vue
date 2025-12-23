@@ -3,9 +3,9 @@
     <!-- HEADER Y NAVEGACIÓN -->
     <div class="editor-header no-print">
       <div class="header-top">
-        <h2>🛠️ Editor</h2>
-        <button @click="$emit('volver')" class="btn-volver" title="Volver al Panel">
-          <span class="icon">⬅️</span> <span class="text">Volver</span>
+        <h2>🛠️ {{ $t('editor.title') }}</h2>
+        <button @click="$emit('volver')" class="btn-volver" :title="$t('common.back')">
+          <span class="icon">⬅️</span> <span class="text">{{ $t('common.back') }}</span>
         </button>
       </div>
 
@@ -13,26 +13,42 @@
         <button 
           :class="['tab-btn', { active: activeTab === 'menu' }]" 
           @click="activeTab = 'menu'"
-          title="Menú"
+          :title="$t('editor.tabs.menu')"
         >
           <span class="tab-icon">🍔</span>
-          <span class="tab-text">Menú</span>
+          <span class="tab-text">{{ $t('editor.tabs.menu') }}</span>
+        </button>
+        <button 
+          :class="['tab-btn', { active: activeTab === 'categorias' }]" 
+          @click="activeTab = 'categorias'"
+          title="Categorías"
+        >
+          <span class="tab-icon">🏷️</span>
+          <span class="tab-text">{{ $t('editor.tabs.categories') || 'Categorías' }}</span>
+        </button>
+        <button 
+          :class="['tab-btn', { active: activeTab === 'pagos' }]" 
+          @click="activeTab = 'pagos'"
+          title="Métodos de Pago"
+        >
+          <span class="tab-icon">💳</span>
+          <span class="tab-text">{{ $t('editor.tabs.payments') || 'Pagos' }}</span>
         </button>
         <button 
           :class="['tab-btn', { active: activeTab === 'config' }]" 
           @click="activeTab = 'config'"
-          title="Configuración"
+          :title="$t('editor.tabs.config')"
         >
           <span class="tab-icon">⚙️</span>
-          <span class="tab-text">Configuración</span>
+          <span class="tab-text">{{ $t('editor.tabs.config') }}</span>
         </button>
         <button 
           :class="['tab-btn', { active: activeTab === 'mesas' }]" 
           @click="activeTab = 'mesas'"
-          title="Mesas"
+          :title="$t('editor.tabs.tables')"
         >
           <span class="tab-icon">🪑</span>
-          <span class="tab-text">Mesas</span>
+          <span class="tab-text">{{ $t('editor.tabs.tables') }}</span>
         </button>
       </div>
     </div>
@@ -45,8 +61,8 @@
         <!-- Botón Ver Menú -->
         <div class="menu-actions no-print">
           <a :href="urlMenuDinamica" target="_blank" class="btn-ver-menu">
-            <span class="icon">📄</span> 
-            Ver Menú Digital / PDF
+            <span class="icon">📄</span>
+            {{ $t('editor.menu.view_menu') }}
             <span class="external-icon">↗</span>
           </a>
         </div>
@@ -54,54 +70,59 @@
         <!-- Formulario Nuevo Item -->
         <div class="card form-card">
           <div class="card-header">
-            <h3>➕ Nuevo Plato</h3>
+            <h3>➕ {{ $t('editor.menu.new_item') }}</h3>
           </div>
           <form @submit.prevent="crearItem" class="item-form">
             <div class="form-grid">
               <div class="form-group">
-                <label>Nombre</label>
-                <input v-model="newItem.nombre" placeholder="Ej: Hamburguesa Doble" required />
+                <label>{{ $t('editor.form.name') }}</label>
+                <input v-model="newItem.nombre" :placeholder="$t('editor.placeholders.name')" required />
               </div>
               <div class="form-group">
-                <label>Categoría</label>
-                <input v-model="newItem.categoria" placeholder="Ej: Platos Fuertes" required />
+                <label>{{ $t('editor.form.category') }}</label>
+                <select v-model="newItem.categoria" required>
+                  <option value="" disabled>{{ $t('editor.placeholders.category') }}</option>
+                  <option v-for="cat in categories" :key="cat.id" :value="cat.name">
+                    {{ cat.name }}
+                  </option>
+                </select>
               </div>
               <div class="form-group">
-                <label>Precio ($)</label>
+                <label>{{ $t('editor.form.price') }}</label>
                 <input v-model.number="newItem.precio" type="number" step="0.01" placeholder="0.00" required />
               </div>
               <div class="form-group">
-                <label>Tiempo (min)</label>
+                <label>{{ $t('editor.form.time') }}</label>
                 <input v-model.number="newItem.tiempo_estimado" type="number" placeholder="15" />
               </div>
             </div>
-            
+
             <div class="form-group">
-              <label>Descripción</label>
-              <textarea v-model="newItem.descripcion" placeholder="Ingredientes, alérgenos..." rows="2"></textarea>
+              <label>{{ $t('editor.form.desc') }}</label>
+              <textarea v-model="newItem.descripcion" :placeholder="$t('editor.placeholders.ingredients')" rows="2"></textarea>
             </div>
-            
+
             <!-- ✅ NUEVO: Subir imagen del plato -->
             <div class="form-group">
-              <label>Imagen del Plato</label>
+              <label>{{ $t('editor.form.image') }}</label>
               <input type="file" @change="subirImagenItem" accept="image/*" />
               <div v-if="newItem.image_url" class="img-preview-small">
                 <img :src="newItem.image_url" alt="Preview" />
                 <button @click="newItem.image_url = ''" type="button" class="btn-text-danger">
-                  Eliminar
+                  {{ $t('common.delete') }}
                 </button>
               </div>
-              <small v-if="subiendoImagen" class="text-info">⏳ Subiendo imagen...</small>
+              <small v-if="subiendoImagen" class="text-info">⏳ {{ $t('common.uploading') }}</small>
             </div>
-            
+
             <div class="options-grid">
               <label class="checkbox-card">
                 <input type="checkbox" v-model="newItem.usa_inventario" />
-                <span>📦 Control Stock</span>
+                <span>📦 {{ $t('editor.form.stock_control') }}</span>
               </label>
               <label class="checkbox-card highlight">
                 <input type="checkbox" v-model="newItem.es_directo" />
-                <span>🍹 Servir Directo</span>
+                <span>🍹 {{ $t('editor.form.direct_serve') }}</span>
               </label>
             </div>
 
@@ -109,18 +130,18 @@
             <div v-if="newItem.usa_inventario" class="inventory-subform">
               <div class="form-grid small-grid">
                 <div class="form-group">
-                  <label>Stock Actual</label>
+                  <label>{{ $t('editor.form.stock_current') }}</label>
                   <input v-model.number="newItem.stock_actual" type="number" min="0" />
                 </div>
                 <div class="form-group">
-                  <label>Stock Mínimo</label>
+                  <label>{{ $t('editor.form.stock_min') }}</label>
                   <input v-model.number="newItem.stock_minimo" type="number" min="0" />
                 </div>
               </div>
             </div>
-            
+
             <button type="submit" class="btn-submit" :disabled="loading">
-              {{ loading ? 'Guardando...' : '✨ Agregar Item' }}
+              {{ loading ? $t('common.saving') : '✨ ' + $t('editor.form.add_item') }}
             </button>
           </form>
         </div>
@@ -135,36 +156,46 @@
                   <input v-model="item.nombre" class="edit-input title-input" @change="actualizarItem(item)" />
                   <button @click="eliminarItem(item.id)" class="btn-icon delete" title="Eliminar">🗑️</button>
                 </div>
-                
+
                 <div class="item-card-body">
-                  <textarea 
-                    v-model="item.descripcion" 
-                    class="edit-input desc-input" 
-                    @change="actualizarItem(item)" 
+                  <textarea
+                    v-model="item.descripcion"
+                    class="edit-input desc-input"
+                    @change="actualizarItem(item)"
                     rows="2"
-                    placeholder="Agrega una descripción..." 
+                    :placeholder="$t('editor.form.desc_placeholder')"
                   ></textarea>
-                  
+
+                  <!-- Category Selector for Edit -->
+                  <div class="form-group" style="margin-top: 8px;">
+                    <label style="font-size: 12px; font-weight: 600; color: #4b5563; display: block; margin-bottom: 4px;">{{ $t('editor.form.category') }}</label>
+                    <select v-model="item.categoria" @change="actualizarItem(item)" style="width: 100%; padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                      <option v-for="cat in categories" :key="cat.id" :value="cat.name">
+                        {{ cat.name }}
+                      </option>
+                    </select>
+                  </div>
+
                   <!-- ✅ NUEVO: Imagen del plato -->
                   <div style="margin: 8px 0; padding: 8px; background: #f9fafb; border-radius: 6px;">
-                    <label style="font-size: 12px; font-weight: 600; color: #4b5563; display: block; margin-bottom: 4px;">🖼️ Imagen:</label>
-                    <input 
-                      type="file" 
-                      @change="(e) => subirImagenItemExistente(e, item)" 
-                      accept="image/*" 
+                    <label style="font-size: 12px; font-weight: 600; color: #4b5563; display: block; margin-bottom: 4px;">🖼️ {{ $t('editor.form.image_label') }}</label>
+                    <input
+                      type="file"
+                      @change="(e) => subirImagenItemExistente(e, item)"
+                      accept="image/*"
                       style="font-size: 11px; width: 100%;"
                     />
                     <div v-if="item.image_url" class="img-preview-small" style="margin-top: 8px;">
                       <img :src="item.image_url" alt="Preview" />
-                      <button 
-                        @click="eliminarImagenItem(item)" 
-                        type="button" 
+                      <button
+                        @click="eliminarImagenItem(item)"
+                        type="button"
                         class="btn-text-danger"
                       >
-                        Eliminar
+                        {{ $t('common.delete') }}
                       </button>
                     </div>
-                    <small v-if="itemEditandoImagen === item.id" class="text-info">⏳ Subiendo...</small>
+                    <small v-if="itemEditandoImagen === item.id" class="text-info">⏳ {{ $t('common.uploading') }}</small>
                   </div>
 
                   <div class="price-time-row">
@@ -180,12 +211,12 @@
                   <div class="badges-row">
                     <label class="badge-checkbox" :class="{ active: item.es_directo }">
                       <input type="checkbox" v-model="item.es_directo" @change="actualizarItem(item)" />
-                      🍹 Directo
+                      🍹 {{ $t('editor.badges.direct') }}
                     </label>
                     
                     <label class="badge-checkbox" :class="{ active: item.usa_inventario }">
                       <input type="checkbox" v-model="item.usa_inventario" @change="actualizarItem(item)" />
-                      📦 Stock
+                      📦 {{ $t('editor.badges.stock') }}
                     </label>
                   </div>
 
@@ -193,9 +224,9 @@
                   <div v-if="item.usa_inventario" class="stock-control">
                     <input v-model.number="item.stock_actual" type="number" class="stock-input" @change="actualizarItem(item)" placeholder="#" />
                     <select v-model="item.estado_inventario" class="stock-select" @change="actualizarItem(item)">
-                      <option value="disponible">✅ Disp</option>
-                      <option value="poco_stock">⚠️ Bajo</option>
-                      <option value="no_disponible">❌ Agotado</option>
+                      <option value="disponible">✅ {{ $t('editor.stock.available') }}</option>
+                      <option value="poco_stock">⚠️ {{ $t('editor.stock.low') }}</option>
+                      <option value="no_disponible">❌ {{ $t('editor.stock.out') }}</option>
                     </select>
                   </div>
                 </div>
@@ -209,51 +240,51 @@
       <div v-if="activeTab === 'config'" class="tab-content fade-in">
         <div class="card config-card">
           <div class="card-header">
-            <h3>⚙️ Ajustes Generales</h3>
+            <h3>⚙️ {{ $t('editor.config.title') }}</h3>
           </div>
           <div class="form-group">
-            <label>Nombre Restaurante</label>
+            <label>{{ $t('editor.config.name') }}</label>
             <input v-model="config.nombre" />
           </div>
 
           <!-- ✅ Campo Nombre Corto -->
           <div class="form-group">
-            <label>Nombre Corto (App Móvil) <small>(Máx 12 letras)</small></label>
+            <label>{{ $t('editor.config.short_name') }} <small>(Máx 12 letras)</small></label>
             <input v-model="config.nombre_corto" type="text" placeholder="Ej: SierraNevada" maxlength="15" />
           </div>
           <div class="form-group">
-            <label>Slogan / Subtítulo</label>
+            <label>{{ $t('editor.config.slogan') }}</label>
             <input v-model="config.subtitulo" />
           </div>
           
           <div class="options-grid" style="margin-top: 16px;">
              <label class="checkbox-card">
                 <input type="checkbox" v-model="config.ocultarTextoPortada" />
-                <span>Ocultar texto en portada</span>
+                <span>{{ $t('editor.config.hide_text') }}</span>
               </label>
           </div>
 
           <div class="form-group" style="margin-top: 16px;">
-             <label>Imagen Portada</label>
+             <label>{{ $t('editor.config.cover_img') }}</label>
              <input type="file" @change="e => procesarImagen(e, 'imagenPortada')" accept="image/*" />
              <div v-if="config.imagenPortada" class="img-preview">
                 <img :src="config.imagenPortada" />
-                <button @click="config.imagenPortada = ''" class="btn-text-danger">Eliminar</button>
+                <button @click="config.imagenPortada = ''" class="btn-text-danger">{{ $t('common.delete') }}</button>
              </div>
           </div>
 
           <div class="form-group">
-             <label>Fondo Menú</label>
+             <label>{{ $t('editor.config.menu_bg') }}</label>
              <input type="file" @change="e => procesarImagen(e, 'imagenFondoMenu')" accept="image/*" />
              <div v-if="config.imagenFondoMenu" class="img-preview">
                 <img :src="config.imagenFondoMenu" />
-                <button @click="config.imagenFondoMenu = ''" class="btn-text-danger">Eliminar</button>
+                <button @click="config.imagenFondoMenu = ''" class="btn-text-danger">{{ $t('common.delete') }}</button>
              </div>
           </div>
 
           <!-- ✅ NUEVO: Configuración de Propina -->
           <div class="form-group" style="margin-top: 24px; border-top: 2px solid #e5e7eb; padding-top: 24px;">
-            <label>💰 Porcentaje de Propina Sugerida (%)</label>
+            <label>💰 {{ $t('editor.config.tip_percentage') }}</label>
             <div style="display: flex; align-items: center; gap: 12px;">
               <input
                 v-model.number="porcentajePropina"
@@ -266,22 +297,22 @@
               />
               <span style="color: #6b7280;">%</span>
               <span style="color: #6b7280; font-size: 14px;">
-                (Actualmente: {{ porcentajePropina }}%)
+                ({{ $t('common.currently') }}: {{ porcentajePropina }}%)
               </span>
             </div>
             <p style="font-size: 13px; color: #6b7280; margin-top: 8px;">
-              El sistema sugerirá este % como propina
+              {{ $t('editor.config.tip_help') }}
             </p>
           </div>
 
           <!-- ✅ NUEVO: Colores del tema -->
           <div style="margin-top: 24px; border-top: 2px solid #e5e7eb; padding-top: 24px;">
             <h4 style="margin: 0 0 16px 0; color: #374151; font-size: 16px;">
-              🎨 Colores del Sistema
+              🎨 {{ $t('editor.config.colors_title') }}
             </h4>
             <div class="form-grid">
               <div class="form-group">
-                <label>Color Primario (Botones, Headers)</label>
+                <label>{{ $t('editor.config.colors_primary') }}</label>
                 <div style="display: flex; gap: 8px; align-items: center;">
                   <input v-model="config.color_primario" type="color" style="width: 60px; height: 40px; cursor: pointer; border-radius: 6px; border: 1px solid #e5e7eb;" />
                   <input v-model="config.color_primario" type="text" placeholder="#667eea" style="flex: 1;" />
@@ -289,7 +320,7 @@
               </div>
               
               <div class="form-group">
-                <label>Color Secundario (Fondos, Acentos)</label>
+                <label>{{ $t('editor.config.colors_secondary') }}</label>
                 <div style="display: flex; gap: 8px; align-items: center;">
                   <input v-model="config.color_secundario" type="color" style="width: 60px; height: 40px; cursor: pointer; border-radius: 6px; border: 1px solid #e5e7eb;" />
                   <input v-model="config.color_secundario" type="text" placeholder="#764ba2" style="flex: 1;" />
@@ -301,7 +332,7 @@
           <!-- ✅ NUEVO: Iconos de la Aplicación -->
           <div style="margin-top: 24px; border-top: 2px solid #e5e7eb; padding-top: 24px;">
             <h4 style="margin: 0 0 16px 0; color: #374151; font-size: 16px;">
-              📱 Iconos de la Aplicación
+              📱 {{ $t('editor.config.icons_title') }}
             </h4>
             
             <div class="form-grid">
@@ -311,7 +342,7 @@
                 <input type="file" @change="(e) => subirIcono(e, 'favicon_url')" accept="image/*" />
                 <div v-if="config.favicon_url" class="img-preview-small" style="margin-top: 8px;">
                   <img :src="config.favicon_url" alt="Favicon" style="width: 32px; height: 32px; object-fit: contain;" />
-                  <button @click="config.favicon_url = ''" type="button" class="btn-text-danger">Eliminar</button>
+                  <button @click="config.favicon_url = ''" type="button" class="btn-text-danger">{{ $t('common.delete') }}</button>
                 </div>
               </div>
 
@@ -321,7 +352,7 @@
                 <input type="file" @change="(e) => subirIcono(e, 'icon_192_url')" accept="image/*" />
                 <div v-if="config.icon_192_url" class="img-preview-small" style="margin-top: 8px;">
                   <img :src="config.icon_192_url" alt="Icon 192" style="width: 48px; height: 48px; object-fit: contain;" />
-                  <button @click="config.icon_192_url = ''" type="button" class="btn-text-danger">Eliminar</button>
+                  <button @click="config.icon_192_url = ''" type="button" class="btn-text-danger">{{ $t('common.delete') }}</button>
                 </div>
               </div>
 
@@ -331,7 +362,7 @@
                 <input type="file" @change="(e) => subirIcono(e, 'icon_512_url')" accept="image/*" />
                 <div v-if="config.icon_512_url" class="img-preview-small" style="margin-top: 8px;">
                   <img :src="config.icon_512_url" alt="Icon 512" style="width: 48px; height: 48px; object-fit: contain;" />
-                  <button @click="config.icon_512_url = ''" type="button" class="btn-text-danger">Eliminar</button>
+                  <button @click="config.icon_512_url = ''" type="button" class="btn-text-danger">{{ $t('common.delete') }}</button>
                 </div>
               </div>
 
@@ -341,21 +372,21 @@
                 <input type="file" @change="(e) => subirIcono(e, 'apple_touch_icon_url')" accept="image/*" />
                 <div v-if="config.apple_touch_icon_url" class="img-preview-small" style="margin-top: 8px;">
                   <img :src="config.apple_touch_icon_url" alt="Apple Icon" style="width: 48px; height: 48px; object-fit: contain;" />
-                  <button @click="config.apple_touch_icon_url = ''" type="button" class="btn-text-danger">Eliminar</button>
+                  <button @click="config.apple_touch_icon_url = ''" type="button" class="btn-text-danger">{{ $t('common.delete') }}</button>
                 </div>
               </div>
             </div>
             <p style="font-size: 12px; color: #6b7280; margin-top: 12px;">
-              💡 Estos iconos se usarán para la instalación PWA y marcadores del navegador.
+              💡 {{ $t('editor.config.icons_help') }}
             </p>
           </div>
           
           <button @click="guardarConfig" class="btn-submit" :disabled="guardando" style="margin-top: 24px;">
-            {{ guardando ? 'Guardando...' : '💾 Guardar Cambios' }}
+            {{ guardando ? $t('common.saving') : '💾 ' + $t('common.save_changes') }}
           </button>
 
           <div class="qr-preview" style="margin-top: 32px; text-align: center;">
-             <h4>QR del Menú</h4>
+             <h4>{{ $t('editor.qr_title') }}</h4>
              <GeneradorQR :valor="urlMenuDinamica" :size="180" />
              <p style="margin-top: 8px; font-size: 12px; color: #666;">{{ urlMenuDinamica }}</p>
           </div>
@@ -366,36 +397,135 @@
       <div v-if="activeTab === 'mesas'" class="tab-content fade-in">
         <div class="card form-card">
           <div class="card-header">
-            <h3>➕ Nueva Mesa</h3>
+            <h3>➕ {{ $t('editor.tables.new_table') }}</h3>
           </div>
           <form @submit.prevent="crearMesa" class="inline-form">
             <div class="form-grid" style="grid-template-columns: 1fr 1fr auto;">
-              <input v-model.number="newMesa.numero" type="number" placeholder="# Mesa" required />
-              <input v-model.number="newMesa.capacidad" type="number" placeholder="Capacidad" required />
-              <button type="submit" class="btn-submit small" style="width: auto;">Agregar</button>
+              <input v-model.number="newMesa.numero" type="number" :placeholder="$t('editor.tables.number')" required />
+              <input v-model.number="newMesa.capacidad" type="number" :placeholder="$t('editor.tables.capacity')" required />
+              <button type="submit" class="btn-submit small" style="width: auto;">{{ $t('common.add') }}</button>
             </div>
           </form>
         </div>
 
         <div class="mesas-grid">
           <div v-for="mesa in mesas" :key="mesa.id" class="mesa-card">
-            <div class="mesa-number">Mesa {{ mesa.numero }}</div>
-            <div class="mesa-capacity">👤 {{ mesa.capacidad }} pers.</div>
+            <div class="mesa-number">{{ $t('common.table') }} {{ mesa.numero }}</div>
+            <div class="mesa-capacity">👤 {{ mesa.capacidad }} {{ $t('common.people') }}</div>
             <button @click="eliminarMesa(mesa.id)" class="btn-icon delete-mesa" title="Eliminar">✕</button>
           </div>
         </div>
+      </div>
+
+      <!-- TAB: CATEGORÍAS (Restored) -->
+      <div v-if="activeTab === 'categorias'" class="tab-content fade-in">
+          <div class="card form-card">
+              <div class="card-header">
+                  <h3>➕ {{ $t('editor.tabs.categories') }}</h3>
+              </div>
+              <form @submit.prevent="crearCategoria" class="inline-form">
+                  <div class="form-grid" style="grid-template-columns: 2fr 1fr auto;">
+                      <div class="input-labeled">
+                        <label>{{ $t('editor.form.name') }}</label>
+                        <input v-model="newCategory.name" :placeholder="$t('editor.placeholders.category')" required />
+                      </div>
+                      <div class="input-labeled">
+                        <label>Orden</label>
+                        <input v-model.number="newCategory.display_order" type="number" placeholder="0" />
+                      </div>
+                      <div class="input-labeled">
+                         <label>&nbsp;</label>
+                         <button type="submit" class="btn-submit small">{{ $t('common.add') }}</button>
+                      </div>
+                  </div>
+              </form>
+          </div>
+
+          <div class="list-container">
+              <div class="list-header">
+                <span style="flex: 2;">{{ $t('editor.headers.category_name') }}</span>
+                <span style="flex: 1; text-align: center;">{{ $t('editor.headers.visual_order') }}</span>
+                <span style="width: 40px;"></span>
+              </div>
+              <div v-for="cat in categories" :key="cat.id" class="list-item-row">
+                  <div style="flex: 2;">
+                    <input v-model="cat.name" class="clean-input" @change="actualizarCategoria(cat)" />
+                  </div>
+                  <div style="flex: 1; text-align: center;">
+                    <input v-model.number="cat.display_order" type="number" class="clean-input center" @change="actualizarCategoria(cat)" />
+                  </div>
+                  <div style="width: 40px; text-align: right;">
+                    <button @click="eliminarCategoria(cat.id)" class="btn-icon delete" title="Eliminar">🗑️</button>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <!-- TAB: MÉTODOS DE PAGO (Restored) -->
+      <div v-if="activeTab === 'pagos'" class="tab-content fade-in">
+          <div class="card form-card">
+              <div class="card-header">
+                  <h3>➕ {{ $t('editor.tabs.payments') }}</h3>
+              </div>
+              <form @submit.prevent="crearMetodoPago" class="inline-form">
+                  <div class="form-grid" style="grid-template-columns: 1fr 1fr auto;">
+                      <div class="input-labeled">
+                        <label>Código Interno</label>
+                        <input v-model="newPaymentMethod.name" placeholder="ej: daviplata" required />
+                      </div>
+                      <div class="input-labeled">
+                        <label>Nombre Visible</label>
+                        <input v-model="newPaymentMethod.label" placeholder="ej: Daviplata" required />
+                      </div>
+                      <div class="input-labeled">
+                        <label>&nbsp;</label>
+                        <button type="submit" class="btn-submit small">{{ $t('common.add') }}</button>
+                      </div>
+                  </div>
+              </form>
+          </div>
+
+          <div class="list-container">
+               <div class="list-header">
+                <span style="flex: 1;">{{ $t('editor.headers.visible_name') }}</span>
+                <span style="flex: 1;">{{ $t('editor.headers.internal_code') }}</span>
+                <span style="width: 100px; text-align: center;">{{ $t('editor.headers.status') }}</span>
+                <span style="width: 40px;"></span>
+              </div>
+              <div v-for="pm in paymentMethods" :key="pm.id" class="list-item-row">
+                  <div style="flex: 1;">
+                      <input v-model="pm.label" class="clean-input" @change="actualizarMetodoPago(pm)" />
+                  </div>
+                  <div style="flex: 1; color: #6b7280; font-family: monospace;">
+                      {{ pm.name }}
+                  </div>
+                  <div style="width: 100px; display: flex; justify-content: center;">
+                      <label class="switch">
+                          <input type="checkbox" v-model="pm.active" @change="actualizarMetodoPago(pm)">
+                          <span class="slider round"></span>
+                      </label>
+                  </div>
+                  <div style="width: 40px; text-align: right;">
+                      <button v-if="pm.name !== 'cash'" @click="eliminarMetodoPago(pm.id)" class="btn-icon delete">🗑️</button>
+                  </div>
+              </div>
+          </div>
+          <p style="font-size: 12px; color: #6b7280; margin-top: 12px;">
+            ℹ️ <strong>{{ $t('editor.headers.status') }}:</strong> {{ $t('editor.config.payment_method_status_help') }}
+          </p>
       </div>
 
     </div>
   </div>
 </template>
 
-
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n'; // Import useI18n
 import api from '../api';
 import GeneradorQR from './GeneradorQR.vue';
 
+const { t } = useI18n(); // Destructure t function
 const emit = defineEmits(['volver']);
 
 const activeTab = ref('menu');
@@ -741,12 +871,201 @@ const eliminarMesa = async (id) => {
   }
 };
 
+// Computed para agrupar ítems por categoría y ORDENAR por configuración
+const menuAgrupado = computed(() => {
+  const grupos = {};
+  
+  // 1. Agrupar
+  pedidoStore.menu.forEach(item => {
+    if (!grupos[item.categoria]) grupos[item.categoria] = [];
+    grupos[item.categoria].push(item);
+  });
+
+  // 2. Ordenar objeto basado en la lista de categorías (categories.value)
+  const gruposOrdenados = {};
+  
+  // Primero las categorías definidas en el orden correcto
+  categories.value.forEach(cat => {
+    if (grupos[cat.name]) {
+        gruposOrdenados[cat.name] = grupos[cat.name];
+        delete grupos[cat.name]; // Ya lo procesamos
+    }
+  });
+
+  // Luego las que sobren (por si hay inconsistencias o categorías borradas)
+  Object.keys(grupos).sort().forEach(key => {
+      gruposOrdenados[key] = grupos[key];
+  });
+
+  return gruposOrdenados;
+});
+
+// --- MÉTODOS CATEGORÍAS ---
+const categories = ref([]);
+const newCategory = ref({ name: '', display_order: 0 });
+
+const cargarCategories = async () => {
+    try {
+        const res = await api.getCategories();
+        categories.value = res.data; // Ya viene ordenado por DB
+    } catch (err) {
+        console.error('Error cargando categorías:', err);
+    }
+};
+
+const crearCategoria = async () => {
+    if (!newCategory.value.name) return;
+    try {
+        await api.createCategory(newCategory.value);
+        newCategory.value = { name: '', display_order: 0 };
+        await cargarCategories();
+    } catch (err) {
+        alert(err.response?.data?.error || 'Error creando categoría');
+    }
+};
+
+const actualizarCategoria = async (cat) => {
+    try {
+        await api.updateCategory(cat.id, cat);
+        // Recargar para ordenar
+        await cargarCategories();
+    } catch (err) {
+        alert('Error actualizando categoría');
+    }
+};
+
+const eliminarCategoria = async (id) => {
+    if (!confirm('⚠️ ¿Eliminar esta categoría?\n\nSi hay platos asociados, no se permitirá eliminar.')) return;
+    try {
+        await api.deleteCategory(id);
+        await cargarCategories();
+    } catch (err) {
+        alert(err.response?.data?.error || 'Error al eliminar');
+    }
+};
+
+// --- MÉTODOS PAGOS ---
+const paymentMethods = ref([]);
+const newPaymentMethod = ref({ name: '', label: '', is_digital: false });
+
+const cargarPaymentMethods = async () => {
+    try {
+        const res = await api.getPaymentMethods();
+        paymentMethods.value = res.data;
+    } catch (err) {
+        console.error('Error cargando métodos de pago:', err);
+    }
+};
+
+const crearMetodoPago = async () => {
+    if (!newPaymentMethod.value.name || !newPaymentMethod.value.label) return;
+    try {
+        await api.createPaymentMethod(newPaymentMethod.value);
+        newPaymentMethod.value = { name: '', label: '', is_digital: false };
+        await cargarPaymentMethods();
+    } catch (err) {
+        alert(err.response?.data?.error || 'Error creando método de pago');
+    }
+};
+
+const actualizarMetodoPago = async (pm) => {
+    try {
+        // Enviar el objeto tal cual, la DB espera 'active' (que ya debe estar en pm) o 'active' mapeado
+        // Si el v-model está en pm.active, esto funciona directo.
+        await api.updatePaymentMethod(pm.id, pm);
+    } catch (err) {
+        console.error(err);
+        alert('Error actualizando método');
+    }
+};
+
+const eliminarMetodoPago = async (id) => {
+    if (!confirm('¿Eliminar método de pago?')) return;
+    try {
+        await api.deletePaymentMethod(id);
+        await cargarPaymentMethods();
+    } catch (err) {
+         alert('Error al eliminar');
+    }
+};
+
 onMounted(() => {
   cargarMenu();
   cargarMesas();
   cargarConfig();
- // obtenerIP();
+  cargarCategories(); // ✅ NUEVO
+  cargarPaymentMethods(); // ✅ NUEVO
+  // obtenerIP();
 });
 </script>
 
 <style src="../assets/styles/EditorPanel.css" scoped></style>
+
+<style scoped>
+/* Clean List Styling */
+.input-labeled {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.input-labeled label {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.list-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+.list-header {
+  display: flex;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 12px;
+  font-weight: 700;
+  color: #4b5563;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.list-item-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  gap: 12px;
+}
+
+.list-item-row:last-child {
+  border-bottom: none;
+}
+
+.clean-input {
+  width: 100%;
+  border: 1px solid transparent;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 14px;
+}
+
+.clean-input:hover {
+  background: #f3f4f6;
+}
+
+.clean-input:focus {
+  background: white;
+  border-color: var(--color-primary);
+  outline: none;
+}
+
+.clean-input.center {
+  text-align: center;
+}
+</style>

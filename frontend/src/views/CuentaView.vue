@@ -3,42 +3,42 @@
     <!-- Loading -->
     <div v-if="loading" class="loading">
       <div class="spinner"></div>
-      <p>Cargando cuenta...</p>
+      <p>{{ $t('bill.loading') }}</p>
     </div>
 
     <!-- Error -->
     <div v-else-if="error" class="error">
       <div class="icon">❌</div>
-      <h3>No pudimos cargar la cuenta</h3>
+      <h3>{{ $t('bill.error_title') }}</h3>
       <p>{{ error }}</p>
     </div>
 
     <!-- Cuenta OK -->
     <div v-else-if="pedido" class="cuenta-content">
       <div class="header">
-        <h1>🧾 Cuenta de Mesa {{ pedido.mesa_numero }}</h1>
-        <div class="pedido-id">Pedido #{{ pedido.id.slice(-8) }}</div>
+        <h1>🧾 {{ $t('bill.title') }} {{ pedido.mesa_numero }}</h1>
+        <div class="pedido-id">{{ $t('bill.order_id') }}{{ pedido.id.slice(-8) }}</div>
       </div>
 
       <!-- Estado del Pedido -->
       <div class="status-card">
         <div class="status-info">
-          <span class="status-label">Estado:</span>
+          <span class="status-label">{{ $t('bill.status') }}:</span>
           <span class="status-value">{{ getEstadoTexto(pedido.estado) }}</span>
         </div>
         <div class="status-info">
-          <span class="status-label">Total:</span>
+          <span class="status-label">{{ $t('bill.total') }}:</span>
           <span class="status-value">${{ total.toLocaleString() }}</span>
         </div>
         <div class="status-info">
-          <span class="status-label">Fecha:</span>
+          <span class="status-label">{{ $t('bill.date') }}:</span>
           <span class="status-value">{{ formatFecha(pedido.created_at) }}</span>
         </div>
       </div>
 
       <!-- Items Agrupados -->
       <div class="items-section">
-        <h3>Detalle de la Orden</h3>
+        <h3>{{ $t('bill.details_title') }}</h3>
         <div class="items-list">
           <div v-for="item in itemsAgrupados" :key="item.nombre" class="item-row">
             <div class="item-info">
@@ -50,16 +50,16 @@
         </div>
         <div class="total-section">
           <div class="subtotal-row">
-            <span>Subtotal:</span>
+            <span>{{ $t('bill.subtotal') }}:</span>
             <span>${{ (pedido.subtotal || total).toLocaleString() }}</span>
           </div>
           <div class="subtotal-row">
-            <span>Propina ({{ calcularPorcentajePropina() }}%):</span>
+            <span>{{ $t('bill.tip') }} ({{ calcularPorcentajePropina() }}%):</span>
             <span>${{ (pedido.propina_monto || 0).toLocaleString() }}</span>
           </div>
           <div class="divider"></div>
           <div class="total-row">
-            <span>Total a Pagar:</span>
+            <span>{{ $t('bill.total_pay') }}:</span>
             <span class="total-amount">${{ total.toLocaleString() }}</span>
           </div>
         </div>
@@ -72,15 +72,17 @@
           class="btn-pedir-cuenta"
           :disabled="cuentaSolicitada"
         >
-          {{ cuentaSolicitada ? '✅ Cuenta Solicitada' : '💳 Pedir la Cuenta' }}
+          {{ cuentaSolicitada ? $t('bill.requested_btn') : ('💳 ' + $t('bill.request_btn')) }}
         </button>
         <p v-if="cuentaSolicitada" class="cuenta-solicitada-msg">
-          Tu mesero ha sido notificado y se acercará pronto.
+          {{ $t('bill.requested_msg') }}
         </p>
       </div>
 
       <div class="footer">
-        <p>Gracias por tu preferencia a {{ title }}</p>
+      <div class="footer">
+        <p>{{ $t('bill.footer') }} {{ title }}</p>
+      </div>
       </div>
     </div>
   </div>
@@ -90,6 +92,9 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '../api';
 import socket from '../socket';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const title = import.meta.env.VITE_APP_TITLE;
 
@@ -139,7 +144,7 @@ const cargarPedido = async () => {
     console.log('✅ Pedido cargado:', pedido.value.id); // ✅ DEBUG
   } catch (err) {
     console.error('❌ Error cargando cuenta:', err);
-    error.value = 'No pudimos cargar la cuenta. Verifica que el ID sea correcto.';
+    error.value = t('bill.error_msg');
   } finally {
     loading.value = false;
   }
@@ -147,11 +152,11 @@ const cargarPedido = async () => {
 
 const getEstadoTexto = (estado) => {
   const textos = {
-    nuevo: 'Recibido',
-    en_cocina: 'Preparando',
-    listo: 'Listo',
-    servido: 'Servido ✅',
-    pagado: 'Pagado 💰'
+    nuevo: t('status.nuevo') || 'Recibido',
+    en_cocina: t('status.en_cocina') || 'Preparando',
+    listo: t('status.listo') || 'Listo',
+    servido: t('status.servido') || 'Servido ✅',
+    pagado: t('status.pagado') || 'Pagado 💰'
   };
   return textos[estado] || estado;
 };
@@ -177,7 +182,7 @@ const pedirCuenta = () => {
     mesero_id: pedido.value.usuario_mesero_id
   });
   
-  alert('✅ Tu mesero ha sido notificado y se acercará pronto para el pago.');
+  alert(t('bill.alert_requested'));
 };
 
 const calcularPorcentajePropina = () => {
@@ -192,7 +197,7 @@ onMounted(() => {
   if (cuentaId) {
     cargarPedido();
   } else {
-    error.value = 'ID de cuenta no válido';
+    error.value = t('bill.invalid_id');
     loading.value = false;
   }
 });

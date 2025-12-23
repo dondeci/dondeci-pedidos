@@ -17,7 +17,7 @@ router.get('/ventas-hoy', async (req, res) => {
         const localDate = `(created_at AT TIME ZONE 'UTC' AT TIME ZONE '${TIMEZONE}')::date`;
 
         // Si no hay filtros, usar el día actual LOCAL
-        let whereClause = `WHERE ${localDate} = CURRENT_DATE`;
+        let whereClause = `WHERE ${localDate} = (now() AT TIME ZONE '${TIMEZONE}')::date`;
         let params = [];
 
         if (fecha_inicio && fecha_fin) {
@@ -70,7 +70,7 @@ router.get('/pedidos-hoy', async (req, res) => {
         const localDate = `(p.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${TIMEZONE}')::date`;
 
         // Si no hay filtros, usar el día actual en la zona horaria correcta
-        let whereClause = `WHERE ${localDate} = CURRENT_DATE`;
+        let whereClause = `WHERE ${localDate} = (now() AT TIME ZONE '${TIMEZONE}')::date`;
         let params = [];
 
         if (fecha_inicio && fecha_fin) {
@@ -90,17 +90,28 @@ router.get('/pedidos-hoy', async (req, res) => {
                 p.mesa_numero,
                 u.nombre as mesero,
                 p.total,
+                p.propina_monto,
                 p.estado,
                 p.created_at,
                 COUNT(pi.id) as items_count,
-                t.usuario_facturero_id,
-                t.metodo_pago
+                COALESCE(
+                    json_agg(
+                        json_build_object(
+                            'monto', t.monto,
+                            'metodo_pago', t.metodo_pago,
+                            'created_at', t.created_at,
+                            'cajero_id', t.usuario_facturero_id
+                        ) ORDER BY t.created_at ASC
+                    ) FILTER (WHERE t.id IS NOT NULL), 
+                    '[]'
+                ) as pagos,
+                SUM(t.monto) as total_pagado_real
             FROM pedidos p
             LEFT JOIN usuarios u ON p.usuario_mesero_id = u.id
             LEFT JOIN pedido_items pi ON p.id = pi.pedido_id
             LEFT JOIN transacciones t ON p.id = t.pedido_id
             ${whereClause}
-            GROUP BY p.id, p.mesa_numero, u.nombre, p.total, p.estado, p.created_at, t.usuario_facturero_id, t.metodo_pago
+            GROUP BY p.id, p.mesa_numero, u.nombre, p.total, p.propina_monto, p.estado, p.created_at
             ORDER BY p.created_at DESC
         `;
 

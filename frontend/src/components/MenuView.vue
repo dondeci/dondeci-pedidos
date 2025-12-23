@@ -2,24 +2,24 @@
   <div class="public-menu">
     <!-- Portada -->
     <div class="cover-page" :style="coverPageBaseStyle">
-  <div
-    class="cover-blur"
-    :style="{
-      backgroundImage: config.imagenPortada ? `url('${config.imagenPortada}')` : undefined
-    }"
-  ></div>
-  <div
-    class="cover-main"
-    :style="{
-      backgroundImage: config.imagenPortada ? `url('${config.imagenPortada}')` : undefined
-    }"
-  ></div>
-  <div class="cover-content" v-if="!config.ocultarTextoPortada">
-    <h1 class="restaurant-name">{{ config.nombre || fallbackTitle }}</h1>
-    <p class="restaurant-subtitle">{{ config.subtitulo || fallbackSubtitle }}</p>
-  </div>
-  <div class="scroll-hint">Desliza para ver el menú ↓</div>
-</div>
+      <div
+        class="cover-blur"
+        :style="{
+          backgroundImage: config.imagenPortada ? `url('${config.imagenPortada}')` : undefined
+        }"
+      ></div>
+      <div
+        class="cover-main"
+        :style="{
+          backgroundImage: config.imagenPortada ? `url('${config.imagenPortada}')` : undefined
+        }"
+      ></div>
+      <div class="cover-content" v-if="!config.ocultarTextoPortada">
+        <h1 class="restaurant-name">{{ config.nombre || fallbackTitle }}</h1>
+        <p class="restaurant-subtitle">{{ config.subtitulo || fallbackSubtitle }}</p>
+      </div>
+      <div class="scroll-hint">{{ $t('menu.scroll_hint') }}</div>
+    </div>
 
 
     <!-- Contenido del Menú -->
@@ -42,7 +42,7 @@
                 <span class="price">${{ item.precio.toLocaleString() }}</span>
                 <!-- Agotado -->
                 <span v-if="item.estado_inventario === 'no_disponible'" class="badge-agotado">
-                  Agotado
+                  {{ $t('menu.sold_out') }}
                 </span>
               </div>
             </div>
@@ -51,7 +51,7 @@
       </div>
 
       <div class="footer">
-        <p>¡Gracias por su visita!</p>
+        <p>{{ $t('menu.thank_you') }}</p>
       </div>
     </div>
   </div>
@@ -60,6 +60,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import api from '../api';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 // ✅ Fallback desde .env
 const fallbackTitle = import.meta.env.VITE_APP_TITLE || 'Restaurante';
@@ -74,19 +77,14 @@ const config = ref({
   ocultarTextoPortada: false
 });
 
-const coverStyle = computed(() => {
-  if (config.value.imagenPortada) {
+const coverPageBaseStyle = computed(() => {
     return {
-      position: 'relative',
-      width: '100vw',
-      height: '100vh',
-      overflow: 'hidden',
+        position: 'relative',
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden',
     };
-  }
-  return { background: '#1a1a1a' };
 });
-
-
 
 const menuBackgroundStyle = computed(() => {
   if (config.value.imagenFondoMenu) {
@@ -99,17 +97,42 @@ const menuBackgroundStyle = computed(() => {
   return { background: '#111' };
 });
 
+const categories = ref([]);
+
 const menuPorCategoria = computed(() => {
   const grupos = {};
   menuItems.value.forEach(item => {
     if (!grupos[item.categoria]) grupos[item.categoria] = [];
     grupos[item.categoria].push(item);
   });
-  return grupos;
+
+  // Ordenar usando categories de la DB
+  const gruposOrdenados = {};
+  
+  // 1. Categorías conocidas
+  categories.value.forEach(cat => {
+    if (grupos[cat.name]) {
+        gruposOrdenados[cat.name] = grupos[cat.name];
+        delete grupos[cat.name];
+    }
+  });
+  
+  // 2. Otras
+  Object.keys(grupos).sort().forEach(key => {
+    gruposOrdenados[key] = grupos[key];
+  });
+
+  return gruposOrdenados;
 });
 
 const cargarMenu = async () => {
   try {
+    // Cargar categorias primero para orden
+    try {
+        const catRes = await api.getCategories();
+        categories.value = catRes.data;
+    } catch(e) { console.error('Error cargando categorias publicas', e); }
+
     const res = await api.getMenu();
     menuItems.value = res.data;
     

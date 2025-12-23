@@ -6,12 +6,14 @@ const router = express.Router();
 
 // Función para actualizar estadísticas de tiempo
 async function actualizarEstadisticasTiempo(menuItemId, tiempoReal) {
-    const hoy = new Date().toISOString().split('T')[0];
+    const TIMEZONE = process.env.TIMEZONE || 'America/Bogota';
+    // Usar fecha de la BD para consistencia
+    const localDateExpr = `(now() AT TIME ZONE '${TIMEZONE}')::date`;
 
     const existing = await getAsync(`
         SELECT * FROM item_time_stats 
-        WHERE menu_item_id = $1 AND fecha = $2
-    `, [menuItemId, hoy]);
+        WHERE menu_item_id = $1 AND fecha = ${localDateExpr}
+    `, [menuItemId]);
 
     if (existing) {
         const nuevoTotal = existing.total_preparaciones + 1;
@@ -27,14 +29,15 @@ async function actualizarEstadisticasTiempo(menuItemId, tiempoReal) {
                 tiempo_promedio_minutos = $2,
                 tiempo_minimo_minutos = $3,
                 tiempo_maximo_minutos = $4
-            WHERE menu_item_id = $5 AND fecha = $6::date
-        `, [nuevoTotal, nuevoPromedio, nuevoMin, nuevoMax, menuItemId, hoy]);
+            WHERE menu_item_id = $1 AND fecha = ${localDateExpr}
+        `, [nuevoTotal, nuevoPromedio, nuevoMin, nuevoMax, menuItemId]);
     } else {
         await runAsync(`
             INSERT INTO item_time_stats 
             (menu_item_id, fecha, total_preparaciones, tiempo_promedio_minutos, tiempo_minimo_minutos, tiempo_maximo_minutos)
-            VALUES ($1, $2::date, 1, $3, $4, $5)
-        `, [menuItemId, hoy, tiempoReal, tiempoReal, tiempoReal]);
+            (menu_item_id, fecha, total_preparaciones, tiempo_promedio_minutos, tiempo_minimo_minutos, tiempo_maximo_minutos)
+            VALUES ($1, ${localDateExpr}, 1, $2, $3, $4)
+        `, [menuItemId, tiempoReal, tiempoReal, tiempoReal]);
     }
 }
 
@@ -256,17 +259,21 @@ router.get('/:id', async (req, res) => {
             WHERE pi.pedido_id = $1
             `, [req.params.id]);
 
-        let metodo_pago = null;
-        if (pedido.estado === 'pagado') {
-            const transaccion = await getAsync(`
-                SELECT metodo_pago FROM transacciones WHERE pedido_id = $1 LIMIT 1
-            `, [req.params.id]);
-            if (transaccion) {
-                metodo_pago = transaccion.metodo_pago;
-            }
-        }
+        // Obtener historial de pagos (transacciones)
+        const pagos = await allAsync(`
+            SELECT id, monto, metodo_pago, created_at
+            FROM transacciones 
+            WHERE pedido_id = $1
+            ORDER BY created_at ASC
+        `, [req.params.id]);
 
-        res.json({ ...pedido, items, metodo_pago });
+        // Calcular total pagado real
+        const total_pagado = pagos.reduce((sum, p) => sum + parseFloat(p.monto), 0);
+
+        // Calcular pendiente
+        const pendiente = Math.max(parseFloat(pedido.total) - total_pagado, 0);
+
+        res.json({ ...pedido, items, pagos, total_pagado, pendiente });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

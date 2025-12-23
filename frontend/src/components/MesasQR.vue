@@ -1,8 +1,8 @@
 <template>
   <div class="mesas-qr-container">
     <div class="header">
-      <h1>📱 Códigos QR por Mesa</h1>
-      <p>Escanea o haz clic para ver el pedido actual de cada mesa</p>
+      <h1>📱 {{ $t('qr_view.title') }}</h1>
+      <p>{{ $t('qr_view.subtitle') }}</p>
     </div>
 
     <div v-if="loading" class="loading">
@@ -12,15 +12,15 @@
     <div v-else class="mesas-grid">
       <div v-for="mesa in mesas" :key="mesa.id" class="mesa-card">
         <div class="mesa-icon">🍽️</div>
-        <h2>Mesa {{ mesa.numero }}</h2>
-        <p class="capacidad">Capacidad: {{ mesa.capacidad }} personas</p>
+        <h2>{{ $t('common.table') }} {{ mesa.numero }}</h2>
+        <p class="capacidad">{{ $t('qr_view.capacity').replace('{n}', mesa.capacidad) }}</p>
         
         <div class="qr-actions">
           <button @click="mostrarQR(mesa)" class="btn-qr">
-            📱 Ver QR
+            📱 {{ $t('qr_view.view_qr') }}
           </button>
           <a :href="`/mesa/${mesa.numero}`" target="_blank" class="btn-link">
-            🔗 Abrir Pedido
+            🔗 {{ $t('qr_view.open_order') }}
           </a>
         </div>
         
@@ -36,8 +36,8 @@
         <button class="close-btn" @click="cerrarModal">&times;</button>
         
         <div class="modal-header">
-          <h2>Mesa {{ selectedMesa?.numero }}</h2>
-          <p>Escanea para ver el pedido</p>
+          <h2>{{ $t('common.table') }} {{ selectedMesa?.numero }}</h2>
+          <p>{{ $t('qr_view.scan_hint') }}</p>
         </div>
 
         <div class="qr-display">
@@ -47,7 +47,7 @@
 
         <div class="modal-footer">
           <p class="url-text">{{ getUrl(selectedMesa?.numero) }}</p>
-          <button @click="imprimirQR" class="btn-print">🖨️ Imprimir</button>
+          <button @click="imprimirQR" class="btn-print">🖨️ {{ $t('qr_view.print') }}</button>
         </div>
       </div>
     </div>
@@ -58,6 +58,9 @@
 import { ref, onMounted } from 'vue';
 import api from '../api';
 import QRCode from 'qrcode';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const mesas = ref([]);
 const loading = ref(true);
@@ -110,10 +113,15 @@ const cerrarModal = () => {
 
 const imprimirQR = () => {
   const printWindow = window.open('', '_blank');
+  
+  // Prepare translations
+  const title = `${t('common.table')} ${selectedMesa.value.numero}`;
+  const subtitle = t('qr_view.scan_hint');
+  
   printWindow.document.write(`
     <html>
       <head>
-        <title>QR Mesa ${selectedMesa.value.numero}</title>
+        <title>${title}</title>
         <style>
           body { font-family: sans-serif; text-align: center; padding: 20px; }
           .qr-container { border: 2px solid #000; padding: 20px; display: inline-block; border-radius: 10px; }
@@ -124,9 +132,9 @@ const imprimirQR = () => {
       </head>
       <body>
         <div class="qr-container">
-          <h1>Mesa ${selectedMesa.value.numero}</h1>
+          <h1>${title}</h1>
           <img src="${qrImage.value}" />
-          <p>Escanea para ver tu pedido</p>
+          <p>${subtitle}</p>
         </div>
         <script>
           window.onload = function() { window.print(); window.close(); }

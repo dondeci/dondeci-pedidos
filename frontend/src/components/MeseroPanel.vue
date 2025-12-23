@@ -1,22 +1,22 @@
 <template>
   <div class="mesero-panel">
     <div class="panel-header">
-      <h2>📝 Tomar Pedido</h2>
+      <h2>📝 {{ $t('waiter.title') }}</h2>
       <div class="header-buttons">
         <button @click="abrirQRMesas" class="btn btn-secondary" style="margin-right: 8px;">
-          🖨️ Mesas QRs
+          🖨️ {{ $t('waiter.tables_qr') }}
         </button>
         <button @click="mostrarQRMenu" class="btn btn-info" style="margin-right: 8px;">
-          📱 QR Menú
+          📱 {{ $t('waiter.menu_qr') }}
         </button>
         <button @click="cargarDatos" class="btn btn-secondary" :disabled="loading">
-          🔄 Actualizar
+          {{ $t('waiter.update') }}
         </button>
       </div> 
     </div>
 
     <div class="panel-content">
-      <div v-if="loading" class="loading">Cargando datos...</div>
+      <div v-if="loading" class="loading">{{ $t('waiter.loading') }}</div>
 
       <template v-else>
         <!-- Notificaciones -->
@@ -28,27 +28,27 @@
             </div>
  <!-- Selector de Mesa -->
         <div class="section">
-          <h3>1️⃣ Selecciona la Mesa</h3>
+          <h3>{{ $t('waiter.select_table') }}</h3>
           <div class="mesas-grid">
             <button
               v-for="mesa in pedidoStore.mesas"
               :key="mesa.numero"
-              @click="mesaSeleccionada = mesa.numero"
+              @click="toggleMesa(mesa.numero)"
               :class="['mesa-btn', { 'mesa-active': mesaSeleccionada === mesa.numero }]"
             >
-              Mesa {{ mesa.numero }}
+              {{ $t('common.table') }} {{ mesa.numero }}
             </button>
           </div>
         </div>
 
         <!-- Selector de Items -->
         <div class="section" v-if="mesaSeleccionada">
-          <h3>2️⃣ Selecciona Platos</h3>
+          <h3>{{ $t('waiter.select_dishes') }}</h3>
           <div class="categorias-tabs">
             <button
               v-for="cat in categorias"
               :key="cat"
-              @click="categoriaSeleccionada = cat"
+              @click="toggleCategoria(cat)"
               :class="['tab', { 'tab-active': categoriaSeleccionada === cat }]"
             >
               {{ cat }}
@@ -75,7 +75,7 @@
               
               <div class="item-nombre">{{ item.nombre }}</div>
               <div class="item-precio">${{ item.precio }}</div>
-              <div class="item-tiempo">⏱️ {{ item.tiempo_preparacion_min }}min</div>
+              <div class="item-tiempo">⏱️ {{ item.tiempo_preparacion_min }}{{ $t('common.min') }}</div>
               
               <!-- Inventory Status -->
               <div v-if="item.usa_inventario && item.stock_actual !== null" class="item-stock">
@@ -83,10 +83,10 @@
               </div>
               
               <div v-if="item.estado_inventario === 'no_disponible'" class="item-agotado">
-                ❌ AGOTADO
+                ❌ {{ $t('editor.stock.out').toUpperCase() }}
               </div>
               <div v-else-if="item.estado_inventario === 'poco_stock'" class="item-warning">
-                ⚠️ POCO STOCK
+                ⚠️ {{ $t('editor.stock.low').toUpperCase() }} STOCK
               </div>
             </div>
           </div>
@@ -94,7 +94,7 @@
 
         <!-- Resumen del Pedido -->
         <div class="section" v-if="pedidoEnProgreso.length > 0">
-          <h3>3️⃣ Resumen del Pedido</h3>
+          <h3>{{ $t('waiter.order_summary') }}</h3>
           <div class="pedido-summary">
             <div class="summary-item" v-for="(item, idx) in pedidoEnProgreso" :key="idx">
               <div class="item-info">
@@ -109,13 +109,13 @@
           </div>
 
           <div class="pedido-total">
-            <span>Total:</span>
+            <span>{{ $t('waiter.total') }}</span>
             <span class="total-amount">${{ calcularTotal().toFixed(2) }}</span>
           </div>
 
           <textarea
             v-model="notasPedido"
-            placeholder="Notas especiales (ej: Sin picante, sin tomate...)"
+            :placeholder="$t('waiter.notes_placeholder')"
             class="notas-input"
           ></textarea>
 
@@ -124,19 +124,19 @@
             class="btn btn-primary btn-submit"
             :disabled="!mesaSeleccionada || pedidoEnProgreso.length === 0"
           >
-            ✅ Enviar Pedido a Cocina
+            {{ $t('waiter.send_to_kitchen') }}
           </button>
         </div>
 
         <!-- Items Listos para Servir (Individual) -->
         <div class="section" v-if="misItemsListos.length > 0">
-          <h3>🍽️ Items Listos para Servir <span class="badge-count">{{ misItemsListos.length }}</span></h3>
+          <h3>{{ $t('waiter.items_ready') }} <span class="badge-count">{{ misItemsListos.length }}</span></h3>
           <div class="items-listos-list">
             <div v-for="itemListo in misItemsListos" :key="itemListo.item_id" class="item-listo-card">
               <div class="item-listo-header">
-                <span class="mesa-badge-listo">Mesa {{ itemListo.mesa_numero }}</span>
+                <span class="mesa-badge-listo">{{ $t('common.table') }} {{ itemListo.mesa_numero }}</span>
                 <span class="tiempo-listo">
-                  Listo hace {{ calcularTiempoDesde(itemListo.tiempoDesdeReady) }}
+                  {{ $t('waiter.ready_since') }} {{ calcularTiempoDesde(itemListo.tiempoDesdeReady) }}
                 </span>
               </div>
               <div class="item-listo-body">
@@ -145,7 +145,7 @@
                   <span class="item-cantidad">x{{ itemListo.cantidad_lista }}</span>
                 </div>
                 <button @click="marcarItemComoServido(itemListo.item_id)" class="btn btn-servir-item">
-                  ✅ Marcar como Servido
+                  {{ $t('waiter.mark_served') }}
                 </button>
               </div>
             </div>
@@ -154,11 +154,11 @@
 
         <!-- Pedidos Servidos - Listos para Cobrar -->
         <div class="section" v-if="misPedidosServidos.length > 0">
-          <h3>💰 Pedidos Servidos - Listos para Cobrar</h3>
+          <h3>{{ $t('waiter.orders_served') }}</h3>
           <div class="pedidos-servidos-list">
             <div v-for="pedido in misPedidosServidos" :key="pedido.id" class="pedido-servido-item">
               <div class="pedido-servido-header">
-                <span class="mesa-badge-servido">Mesa {{ pedido.mesa_numero }}</span>
+                <span class="mesa-badge-servido">{{ $t('common.table') }} {{ pedido.mesa_numero }}</span>
                 <span class="total-badge">${{ pedido.total }}</span>
               </div>
               <div class="pedido-servido-detalles">
@@ -166,7 +166,7 @@
                   <span>{{ pedido.items_count }} items</span>
                 </div>
                 <button @click="marcarListoPagar(pedido.id)" class="btn btn-pagar">
-                  💳 Listo para Pagar
+                  {{ $t('waiter.ready_to_pay') }}
                 </button>
               </div>
             </div>
@@ -175,16 +175,16 @@
 
         <!-- Pedidos Activos -->
         <div class="section">
-          <h3>📋 Tus Pedidos en Progreso</h3>
+          <h3>{{ $t('waiter.orders_in_progress') }}</h3>
           <div v-if="misPedidos.length === 0" class="empty-state">
-            No hay pedidos activos
+            {{ $t('waiter.no_active_orders') }}
           </div>
           <div v-else class="pedidos-list">
             <div v-for="pedido in misPedidos" :key="pedido.id" class="pedido-item">
               <div class="pedido-header">
-                <span class="mesa-badge">Mesa {{ pedido.mesa_numero }}</span>
+                <span class="mesa-badge">{{ $t('common.table') }} {{ pedido.mesa_numero }}</span>
                 <span :class="['estado-badge', `estado-${pedido.estado}`]">
-                  {{ pedido.estado.replace('_', ' ').toUpperCase() }}
+                  {{ $t('status.' + pedido.estado) }}
                 </span>
               </div>
               <div class="pedido-detalles">
@@ -197,17 +197,17 @@
                   @click="abrirEditorPedido(pedido)" 
                   class="btn btn-primary btn-small"
                 >
-                  ✏️ Editar
+                  {{ $t('waiter.edit') }}
                 </button>
                 <button 
                   v-if="['nuevo', 'en_cocina'].includes(pedido.estado)"
                   @click="cancelarPedido(pedido.id)"
                   class="btn btn-secondary btn-small"
                 >
-                  ❌ Cancelar
+                  {{ $t('waiter.cancel') }}
                 </button>
                 <button @click="mostrarQRCliente(pedido.id)" class="btn btn-secondary btn-small">
-                  📱 QR
+                  {{ $t('waiter.qr') }}
                 </button>
               </div>
             </div>
@@ -215,9 +215,35 @@
         </div>
   <div v-if="mostrarQR" class="qr-modal-overlay" @click.self="cerrarQR">
     <div class="qr-modal">
-        <h3>📱 Escanea para ver el estado</h3>
-        <GeneradorQR ref="qrComponent" :valor="urlParaQR" />
-        <button @click="cerrarQR" class="btn btn-secondary" style="margin-top:16px;">Cerrar</button>
+        <button class="close-btn" @click="cerrarQR">&times;</button>
+        <h3>{{ tipoQR === 'menu' ? $t('waiter.menu_qr') : $t('waiter.scan_status') }}</h3>
+        <GeneradorQR ref="qrComponent" :valor="urlParaQR" :size="300" :mostrarDescarga="false" />
+        
+        <div class="qr-actions" style="margin-top: 16px; display: flex; flex-direction: column; gap: 8px; width: 100%;">
+            <!-- Botones para QR de Pedido -->
+            <template v-if="tipoQR === 'pedido'">
+                <a :href="urlParaQR" target="_blank" class="btn btn-primary">
+                    👁️ {{ $t('qr_view.view_qr') }}
+                </a>
+                <button @click="imprimirQR" class="btn btn-secondary">
+                    🖨️ {{ $t('qr_view.print') }}
+                </button>
+            </template>
+
+            <!-- Botones para QR de Menú -->
+            <template v-if="tipoQR === 'menu'">
+                <a :href="urlParaQR" target="_blank" class="btn btn-primary">
+                    📄 {{ $t('editor.menu.view_menu') }}
+                </a>
+                 <button @click="imprimirQR" class="btn btn-secondary">
+                    🖨️ {{ $t('qr_view.print') }}
+                </button>
+            </template>
+
+            <button @click="cerrarQR" class="btn btn-text-danger" style="margin-top: 8px;">
+                {{ $t('common.close') }}
+            </button>
+        </div>
     </div>
   </div>
 
@@ -225,19 +251,19 @@
   <div v-if="mostrarEditorPedido" class="qr-modal-overlay" @click.self="cerrarEditorPedido">
     <div class="editor-pedido-modal">
       <div class="editor-header">
-        <h3>✏️ Editar Pedido - Mesa {{ pedidoEditando?.mesa_numero }}</h3>
+        <h3>{{ $t('waiter.edit_order_title') }} {{ pedidoEditando?.mesa_numero }}</h3>
         <button @click="cerrarEditorPedido" class="btn-cerrar">✕</button>
       </div>
 
       <!-- Items actuales del pedido -->
       <div class="editor-seccion">
-        <h4>Items del Pedido</h4>
-        <div v-if="!pedidoEditando?.items?.length" class="empty-state">Sin items</div>
+        <h4>{{ $t('waiter.order_items') }}</h4>
+        <div v-if="!pedidoEditando?.items?.length" class="empty-state">{{ $t('waiter.no_active_orders') }}</div>
         <div v-else class="items-edicion-list">
           <div v-for="item in pedidoEditando.items" :key="item.id" class="item-edicion">
             <div class="item-edicion-info">
               <span class="item-nombre">{{ item.nombre }}</span>
-              <span :class="['estado-badge-small', `estado-${item.estado}`]">{{ item.estado }}</span>
+              <span :class="['estado-badge-small', `estado-${item.estado}`]">{{ $t('status.' + item.estado) }}</span>
             </div>
             <div class="item-edicion-acciones">
               <span class="item-precio">${{ item.precio_unitario }}</span>
@@ -255,13 +281,13 @@
           </div>
         </div>
         <div class="editor-total">
-          <strong>Total: ${{ pedidoEditando?.total || 0 }}</strong>
+          <strong>{{ $t('waiter.total') }} ${{ pedidoEditando?.total || 0 }}</strong>
         </div>
       </div>
 
       <!-- Agregar nuevos items -->
       <div class="editor-seccion">
-        <h4>➕ Agregar Items</h4>
+        <h4>{{ $t('waiter.add_items') }}</h4>
         <div class="categorias-tabs mini">
           <button
             v-for="cat in categorias"
@@ -286,13 +312,13 @@
 
         <!-- Items pendientes de agregar -->
         <div v-if="itemsParaAgregar.length > 0" class="items-pendientes-agregar">
-          <h5>Items a agregar:</h5>
+          <h5>{{ $t('waiter.items_to_add') }}</h5>
           <div v-for="(item, idx) in itemsParaAgregar" :key="idx" class="item-pendiente">
             <span>{{ item.cantidad }}x {{ item.nombre }} - ${{ (item.cantidad * item.precio_unitario).toFixed(2) }}</span>
             <button @click="quitarItemPendiente(idx)" class="btn-quitar">✕</button>
           </div>
           <button @click="confirmarAgregarItems" class="btn btn-primary" style="width:100%; margin-top:8px;">
-            ✅ Confirmar nuevos items
+            {{ $t('waiter.confirm_new_items') }}
           </button>
         </div>
       </div>
@@ -311,7 +337,10 @@ import { useNotificaciones } from '../composables/useNotificaciones';
 import GeneradorQR from './GeneradorQR.vue';
 import api from '../api';
 import socket from '../socket';
-import { useRouter } from 'vue-router'; // 1. Importar useRouter
+import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 const { notificaciones, cerrarNotificacion } = useNotificaciones('mesero');
 
 const pedidoStore = usePedidoStore();
@@ -325,8 +354,8 @@ const loading = ref(false);
 const qrComponent = ref(null);
 const mostrarQR = ref(false);
 const urlParaQR = ref('');
-const now = ref(Date.now()); // Reactive time for "Listo hace..."
-const router = useRouter(); // 2. Instanciar router
+const now = ref(Date.now()); 
+const router = useRouter(); 
 
 // Variables para edición de pedidos
 const mostrarEditorPedido = ref(false);
@@ -341,42 +370,149 @@ const itemsPorCategoriaEdicion = computed(() => {
 });
 
 const getHintEliminar = (item) => {
-  if (item.estado === 'en_preparacion') {
-    return 'En preparación - se pedirá confirmación';
-  }
-  if (item.estado === 'listo') {
-    return 'Listo en cocina - se pedirá confirmación';
-  }
-  if (item.estado === 'servido') {
-    return 'Servido al cliente - se pedirá confirmación fuerte';
-  }
-  return 'Eliminar item';
+  // Simple hint logic, can be improved with i18n if needed
+  return t('waiter.edit');
 };
+
+const toggleMesa = (numero) => {
+  if (mesaSeleccionada.value === numero) {
+    mesaSeleccionada.value = null;
+    categoriaSeleccionada.value = '';
+    // Opcional: limpiar pedido en progreso si se desea resetear totalmente
+    // pedidoEnProgreso.value = []; 
+  } else {
+    mesaSeleccionada.value = numero;
+    // Resetear categoría al cambiar de mesa para UX limpia
+    categoriaSeleccionada.value = '';
+  }
+};
+
+const toggleCategoria = (cat) => {
+  if (categoriaSeleccionada.value === cat) {
+    categoriaSeleccionada.value = '';
+  } else {
+    categoriaSeleccionada.value = cat;
+  }
+};
+
 
   
 const abrirQRMesas = () => {
-  // Opción A: Si usas Vue Router con nombre
   const routeData = router.resolve({ name: 'mesas-qr' });
   window.open(routeData.href, '_blank');
-
-  // Opción B: Url directa (Más simple y seguro si no recuerdas el name de la ruta)
-  // const url = `${window.location.origin}/mesas-qr`; 
-  // window.open(url, '_blank');
 };
+const tipoQR = ref('pedido'); // 'pedido' | 'menu'
+
 const mostrarQRCliente = (pedidoId) => {
   const baseUrl = window.location.origin;
   urlParaQR.value = `${baseUrl}/pedido/${pedidoId}/status`;
+  tipoQR.value = 'pedido';
   mostrarQR.value = true;
 };
 
 const mostrarQRMenu = () => {
   const baseUrl = window.location.origin;
   urlParaQR.value = `${baseUrl}/menu`;
+  tipoQR.value = 'menu';
   mostrarQR.value = true;
 };
 
 const cerrarQR = () => {
     mostrarQR.value = false;
+};
+
+const imprimirQR = () => {
+    if (!qrComponent.value || !qrComponent.value.qrSrc) return;
+    
+    // Abrir ventana de impresión limpia
+    const win = window.open('', '_blank', 'width=600,height=600');
+    win.document.write(`
+        <html>
+            <head>
+                <title>Imprimir QR</title>
+                <style>
+                    body { 
+                        display: flex; 
+                        flex-direction: column; 
+                        align-items: center; 
+                        justify-content: center; 
+                        min-height: 100vh; 
+                        margin: 0; 
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                    }
+                    img { max-width: 400px; height: auto; margin: 20px 0; }
+                    h2 { margin: 0; padding: 20px; text-align: center; }
+                    .qr-modal h3 {
+  margin-top: 0;
+  color: #1f2937;
+  font-size: 1.25rem;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+}
+
+.btn-text-danger {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 8px;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.btn-text-danger:hover {
+  color: #dc2626;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+  gap: 0.5rem;
+}
+
+.btn-primary {
+  background-color: #4f46e5;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #4338ca;
+}
+
+.btn-secondary {
+  background-color: white;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.btn-secondary:hover {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+}                 @media print { 
+                        button { display: none; } 
+                        body { -webkit-print-color-adjust: exact; }
+                    }
+                </style>
+            </head>
+            <body>
+                <h2>${tipoQR.value === 'menu' ? t('waiter.menu_qr') : t('waiter.scan_status')}</h2>
+                <img src="${qrComponent.value.qrSrc}" />
+                <p class="note">${urlParaQR.value}</p>
+                <script>
+                    window.onload = function() { window.print(); }
+                <\/script>
+            </body>
+        </html>
+    `);
+    win.document.close();
 };
 
 const descargarQR = () => {
@@ -485,7 +621,7 @@ const cargarDatos = async () => {
 const agregarItemAlPedido = (item) => {
   // No permitir agregar items agotados
   if (item.estado_inventario === 'no_disponible') {
-    alert('❌ Este item no está disponible en este momento');
+    alert(t('waiter.alert_item_unavailable'));
     return;
   }
   
@@ -495,7 +631,7 @@ const agregarItemAlPedido = (item) => {
     // Si usa inventario, verificar que no exceda el stock
     if (item.usa_inventario && item.stock_actual !== null) {
       if (existe.cantidad >= item.stock_actual) {
-        alert(`⚠️ Solo quedan ${item.stock_actual} unidades disponibles`);
+        alert(t('waiter.alert_stock_low', { count: item.stock_actual }));
         return;
       }
     }
@@ -540,34 +676,31 @@ const enviarPedido = async () => {
     localStorage.removeItem('mesero_mesaSeleccionada');
     localStorage.removeItem('mesero_notasPedido');
     
-    alert('✅ Pedido enviado a cocina');
+    alert(t('waiter.alert_order_sent'));
   } catch (err) {
-    alert('❌ Error al enviar pedido');
+    alert(t('waiter.alert_error_sending'));
   }
 };
 
 const marcarComoServido = async (pedidoId) => {
   try {
     await pedidoStore.actualizarEstadoPedido(pedidoId, 'servido');
-    alert('✅ Pedido marcado como servido');
+    alert(t('waiter.alert_marked_served'));
   } catch (err) {
-    alert('❌ Error al marcar como servido');
+    alert(t('common.error'));
   }
 };
 const cancelarPedido = async (pedidoId) => {
-  const confirmado = confirm(
-    '⚠️ ¿Seguro que quieres cancelar este pedido?\n' +
-    'No se eliminarán los datos, pero dejará de estar activo.'
-  );
+  const confirmado = confirm(t('waiter.confirm_cancel'));
   if (!confirmado) return;
 
   try {
     await pedidoStore.actualizarEstadoPedido(pedidoId, 'cancelado');
     await pedidoStore.cargarPedidosActivos();
-    alert('✅ Pedido cancelado');
+    alert(t('waiter.alert_cancelled'));
   } catch (err) {
     console.error(err);
-    alert('❌ Error al cancelar pedido');
+    alert(t('common.error'));
   }
 };
 
@@ -580,7 +713,7 @@ const marcarItemComoServido = async (itemId) => {
     await pedidoStore.cargarPedidosActivos();
   } catch (err) {
     console.error('Error marcando item como servido:', err);
-    alert('❌ Error al marcar item como servido');
+    alert(t('common.error'));
   }
 };
 
@@ -590,9 +723,9 @@ const calcularTiempoDesde = (minutos) => {
   // Si es null o undefined, no mostrar nada
   if (minutos === null || minutos === undefined) return '';
   
-  if (minutos < 1) return 'Ahora';
-  if (minutos === 1) return '1 min';
-  if (minutos < 60) return `${minutos} min`;
+  if (minutos < 1) return t('common.now') || 'Ahora';
+  if (minutos === 1) return `1 ${t('common.min') || 'min'}`;
+  if (minutos < 60) return `${minutos} ${t('common.min') || 'min'}`;
   
   const hours = Math.floor(minutos / 60);
   const mins = minutos % 60;
@@ -604,9 +737,9 @@ const calcularTiempoDesde = (minutos) => {
 const marcarListoPagar = async (pedidoId) => {
   try {
     await pedidoStore.actualizarEstadoPedido(pedidoId, 'listo_pagar');
-    alert('✅ Pedido marcado como listo para pagar');
+    alert(t('waiter.alert_marked_pay_ready'));
   } catch (err) {
-    alert('❌ Error al marcar pedido');
+    alert(t('common.error'));
   }
 };
 
@@ -627,7 +760,7 @@ const abrirEditorPedido = async (pedido) => {
     mostrarEditorPedido.value = true;
   } catch (err) {
     console.error('Error cargando pedido:', err);
-    alert('❌ Error al cargar el pedido');
+    alert(t('common.error'));
   }
 };
 
@@ -639,7 +772,7 @@ const cerrarEditorPedido = () => {
 
 const agregarItemAEdicion = (menuItem) => {
   if (menuItem.estado_inventario === 'no_disponible') {
-    alert('❌ Este item no está disponible');
+    alert(t('waiter.alert_item_unavailable'));
     return;
   }
   
@@ -678,10 +811,10 @@ const confirmarAgregarItems = async () => {
     pedidoEditando.value = response.data;
     itemsParaAgregar.value = [];
     
-    alert('✅ Items agregados al pedido');
+    alert(t('waiter.alert_order_sent'));
   } catch (err) {
     console.error('Error agregando items:', err);
-    alert('❌ Error: ' + (err.response?.data?.error || 'No se pudieron agregar los items'));
+    alert('❌ Error: ' + (err.response?.data?.error || t('common.error')));
   }
 };
 
@@ -690,14 +823,14 @@ const eliminarItemDelPedido = async (item) => {
     await api.eliminarItemDePedido(
       pedidoEditando.value.id,
       item.id,
-      forzar // este lo mapearás a ?confirmar=true en la capa api
+      forzar 
     );
 
     await pedidoStore.cargarPedidosActivos();
     const response = await api.getPedido(pedidoEditando.value.id);
     pedidoEditando.value = response.data;
 
-    alert(`✅ "${item.nombre}" eliminado del pedido`);
+    alert(t('waiter.item_added', { name: item.nombre }));
   };
 
   try {
@@ -707,17 +840,17 @@ const eliminarItemDelPedido = async (item) => {
 
     // Caso: backend pide confirmación (en_preparacion, listo, servido)
     if (data?.requiereConfirmacion) {
-      const ok = confirm(data.mensaje || data.error || '¿Confirmar eliminación del item?');
+      const ok = confirm(data.mensaje || data.error || t('common.are_you_sure'));
       if (!ok) return;
 
       try {
         await intentoEliminar(true);
       } catch (err2) {
-        const msg2 = err2.response?.data?.error || 'No se pudo eliminar el item';
+        const msg2 = err2.response?.data?.error || t('common.error');
         alert('❌ ' + msg2);
       }
     } else {
-      const msg = data?.error || 'No se pudo eliminar el item';
+      const msg = data?.error || t('common.error');
       alert('❌ ' + msg);
     }
   }
@@ -836,3 +969,28 @@ onUnmounted(() => {
 
 <style src="../assets/styles/MeseroPanel.css" scoped></style>
 <style src="../assets/styles/MeseroEdicion.css" scoped></style>
+
+<style scoped>
+/* Fix for QR Modal Close Button */
+.qr-modal {
+  position: relative !important; /* Ensure absolute positioning works for children */
+}
+
+.close-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 0;
+  line-height: 1;
+  z-index: 10;
+}
+
+.close-btn:hover {
+  color: #ef4444;
+}
+</style>

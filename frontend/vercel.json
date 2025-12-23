@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/.well-known/(.*)",
-      "destination": "https://TU-BACKEND-URL-AQUI/api/well-known/$1"
+      "destination": "http://localhost:3000/api/well-known/$1"
     },
     {
       "source": "/(.*)",

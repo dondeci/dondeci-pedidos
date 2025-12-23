@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router' // Importa el router
+import i18n from './i18n' // ✅ Importar configuración de i18n
 import './style.css'
 
 // ✅ Aplicar colores del theme desde variables de entorno
@@ -18,6 +19,7 @@ const app = createApp(App)
 
 app.use(createPinia())
 app.use(router)  // Usa el router
+app.use(i18n) // ✅ Usar i18n
 app.mount('#app')
 
 // Service Worker eliminado para evitar caché

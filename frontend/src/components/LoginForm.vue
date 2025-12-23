@@ -8,19 +8,19 @@
 
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="form-group">
-          <label for="username">Usuario</label>
+          <label for="username">{{ $t('login.username') }}</label>
           <input
             id="username"
             v-model="username"
             type="text"
-            placeholder="Ej: admin"
+            :placeholder="$t('login.username')"
             required
             :disabled="loading"
           />
         </div>
 
         <div class="form-group">
-          <label for="password">Contraseña</label>
+          <label for="password">{{ $t('login.password') }}</label>
           <input
             id="password"
             v-model="password"
@@ -36,18 +36,18 @@
           class="btn btn-login"
           :disabled="loading || !username || !password"
         >
-          <span v-if="loading">Iniciando sesión...</span>
-          <span v-else>Iniciar Sesión</span>
+          <span v-if="loading">{{ $t('login.logging_in') }}</span>
+          <span v-else>{{ $t('login.login_btn') }}</span>
         </button>
       </form>
 
       <div v-if="error" class="error-message">
-        <strong>❌ Error:</strong> {{ error }}
+        <strong>❌ {{ $t('common.error') }}:</strong> {{ error }}
       </div>
 
       <div class="demo-info">
         <p class="demo-note">
-          💡 Solo personal autorizado.
+          💡 {{ $t('login.authorized_only') }}
         </p>
       </div>
     </div>
@@ -58,8 +58,10 @@
 import { ref } from 'vue';
 import { useUsuarioStore } from '../stores/usuarioStore';
 import { useRouter } from 'vue-router';
-import api from '../api'; // ✅ NUEVO
+import api from '../api'; 
+import { useI18n } from 'vue-i18n';
 
+const { t } = useI18n();
 const usuarioStore = useUsuarioStore();
 
 const username = ref('');
@@ -93,7 +95,7 @@ const handleLogin = async () => {
   try {
     await usuarioStore.login(username.value, password.value);
   } catch (err) {
-    error.value = usuarioStore.error || 'Error al conectar con el servidor';
+    error.value = usuarioStore.error || t('common.error');
   } finally {
     loading.value = false;
   }

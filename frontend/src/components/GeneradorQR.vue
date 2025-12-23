@@ -1,8 +1,8 @@
 <template>
   <div class="qr-component">
     <img v-if="qrSrc" :src="qrSrc" alt="QR Code" :style="{ width: size + 'px', height: size + 'px' }" />
-    <div v-else class="loading">Generando QR...</div>
-    <button v-if="qrSrc" @click="descargarQR" class="btn-download">⬇️ Descargar QR</button>
+    <div v-else class="loading">{{ $t('common.loading_status') }}</div>
+    <button v-if="qrSrc && mostrarDescarga" @click="descargarQR" class="btn-download">⬇️ {{ $t('common.download_qr') }}</button>
   </div>
 </template>
 
@@ -18,6 +18,10 @@ const props = defineProps({
   size: {
     type: Number,
     default: 200
+  },
+  mostrarDescarga: {
+    type: Boolean,
+    default: true
   }
 });
 

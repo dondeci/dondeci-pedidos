@@ -2,20 +2,20 @@
   <div class="pedido-status-container">
     <div v-if="loading" class="loading">
       <div class="spinner"></div>
-      <p>Cargando estado del pedido...</p>
+      <p>{{ $t('common.loading_status') }}</p>
     </div>
 
     <div v-else-if="error" class="error-state">
       <div class="icon">❌</div>
-      <h3>No pudimos encontrar tu pedido</h3>
+      <h3>{{ $t('order_status.error_title') }}</h3>
       <p>{{ error }}</p>
-      <button @click="cargarPedido" class="btn btn-primary">Intentar de nuevo</button>
+      <button @click="cargarPedido" class="btn btn-primary">{{ $t('common.retry') }}</button>
     </div>
 
     <div v-else-if="pedido" class="status-content">
       <div class="header">
-        <h1>🍽️ Estado de tu Pedido</h1>
-        <div class="mesa-badge">Mesa {{ pedido.mesa_numero }}</div>
+        <h1>🍽️ {{ $t('order_status.title') }}</h1>
+        <div class="mesa-badge">{{ $t('common.table') }} {{ pedido.mesa_numero }}</div>
       </div>
 
       <!-- Estado General -->
@@ -35,7 +35,7 @@
           </div>
           <!-- Opcional: Mostrar cuánto tardó si ya se sirvió -->
           <div v-else-if="pedido.estado === 'servido'" class="timer-badge success">
-            🏁 Tardó {{ pedido.tiempoTranscurrido }} min
+            🏁 {{ $t('order_status.took') }} {{ pedido.tiempoTranscurrido }} {{ $t('common.min') }}
           </div>
         </div>
       </div>
@@ -46,15 +46,15 @@
           <div class="progress-fill" :style="{ width: porcentajeProgreso + '%' }"></div>
         </div>
         <div class="progress-labels">
-          <span>Recibido</span>
-          <span>Preparando</span>
-          <span>Listo</span>
+          <span>{{ $t('order_status.received') }}</span>
+          <span>{{ $t('order_status.preparing') }}</span>
+          <span>{{ $t('order_status.ready') }}</span>
         </div>
       </div>
 
       <!-- Lista de Items -->
       <div class="items-section">
-        <h3>Tu Orden</h3>
+        <h3>{{ $t('order_status.your_order') }}</h3>
         <div class="items-list">
           <div v-for="item in items" :key="item.id" class="item-row-dynamic">
             <div class="item-header">
@@ -79,15 +79,15 @@
         <!-- Estadísticas de Progreso -->
         <div v-if="estadisticas" class="stats-summary">
           <div class="stat-item">
-            <span class="stat-label">Servidos</span>
+            <span class="stat-label">{{ $t('order_status.stats_served') }}</span>
             <span class="stat-value">{{ estadisticas.servidos }}/{{ estadisticas.total_items }}</span>
           </div>
           <div class="stat-item">
-            <span class="stat-label">Listos</span>
+            <span class="stat-label">{{ $t('order_status.stats_ready') }}</span>
             <span class="stat-value">{{ estadisticas.listos }}</span>
           </div>
           <div class="stat-item">
-            <span class="stat-label">En Preparación</span>
+            <span class="stat-label">{{ $t('order_status.stats_preparing') }}</span>
             <span class="stat-value">{{ estadisticas.en_preparacion }}</span>
           </div>
         </div>
@@ -100,10 +100,10 @@
           class="btn-pedir-cuenta"
           :disabled="cuentaSolicitada"
         >
-          {{ cuentaSolicitada ? '✅ Cuenta Solicitada' : '💳 Pedir la Cuenta' }}
+          {{ cuentaSolicitada ? '✅ ' + $t('order_status.bill_requested') : '💳 ' + $t('order_status.request_bill') }}
         </button>
         <p v-if="cuentaSolicitada" class="cuenta-solicitada-msg">
-          Tu mesero ha sido notificado y se acercará pronto.
+          {{ $t('order_status.waiter_notified') }}
         </p>
       </div>
 
@@ -114,12 +114,12 @@
           class="btn-pedir-cuenta"
           style="background: #4b5563; box-shadow: none;"
         >
-          🧾 Ver cuenta
+          🧾 {{ $t('order_status.view_bill') }}
         </button>
       </div>
 
       <div class="footer-note">
-        <p>¡Gracias por tu visita! Si necesitas ayuda, llama a un mesero.</p>
+        <p>{{ $t('order_status.thank_you') }}</p>
       </div>
     </div>
   </div>
@@ -127,9 +127,12 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { useI18n } from 'vue-i18n'; // Import useI18n
 import api from '../api';
 import socket from '../socket';
   
+const { t } = useI18n(); // Destructure t function
+
 // Detectar tipo de ruta y extraer ID
 const path = window.location.pathname;
 const pathParts = path.split('/');
@@ -173,9 +176,9 @@ const cargarPedido = async () => {
 
   } catch (err) {
     if (esMesa && err.response?.status === 404) {
-      error.value = 'No hay un pedido activo en esta mesa. ¡Escanea el código del menú para ordenar!';
+      error.value = t('order_status.error_no_active_order');
     } else {
-      error.value = 'No pudimos encontrar la información del pedido.';
+      error.value = t('order_status.error_not_found');
     }
     console.error(err);
   } finally {
@@ -190,35 +193,35 @@ const porcentajeProgreso = computed(() => {
 
 const getEstadoTexto = (estado) => {
   const textos = {
-    nuevo: 'Pedido Recibido',
-    en_cocina: 'En Preparación',
-    listo: '¡Pedido Listo!',
-    servido: 'Disfruta tu Comida',
-    pagado: 'Gracias por tu Visita',
-    listo_pagar: 'Listo para Pagar',
-    en_caja: 'En Caja'
+    nuevo: t('order_status.received'),
+    en_cocina: t('order_status.preparing'),
+    listo: t('order_status.ready'),
+    servido: t('order_status.served'),
+    pagado: t('order_status.paid'),
+    listo_pagar: t('status.listo_pagar'),
+    en_caja: t('status.en_caja')
   };
   return textos[estado] || estado;
 };
 
 const getEstadoDescripcion = (estado) => {
   const desc = {
-    nuevo: 'Hemos recibido tu orden y pronto comenzaremos a prepararla.',
-    en_cocina: 'Nuestros chefs están preparando tus platos con cuidado.',
-    listo: 'Tu orden está lista para ser servida.',
-    servido: 'Esperamos que disfrutes tus alimentos.',
-    pagado: 'El pago ha sido procesado exitosamente.',
-    listo_pagar: 'Un mesero se acercará pronto para el pago.',
-    en_caja: 'Procesando tu pago en caja.'
+    nuevo: t('order_status.desc_received'),
+    en_cocina: t('order_status.desc_preparing'),
+    listo: t('order_status.desc_ready'),
+    servido: t('order_status.desc_served'),
+    pagado: t('order_status.desc_paid'),
+    listo_pagar: t('order_status.waiter_notified'), 
+    en_caja: t('order_status.desc_paid') // Reusing paid or similar description, or add new key if strict
   };
   return desc[estado] || '';
 };
 
 // ✅ Simplificado al máximo
 const getTiempoTranscurrido = (tiempoMinutos) => {
-  if (tiempoMinutos < 1) return 'Recién iniciado';
-  if (tiempoMinutos === 1) return '1 min';
-  return `${tiempoMinutos} min`;
+  if (tiempoMinutos < 1) return t('common.just_now') || 'Ahora mismo';
+  if (tiempoMinutos === 1) return `1 ${t('common.min')}`;
+  return `${tiempoMinutos} ${t('common.min')}`;
 };
 
 const verCuenta = () => {
@@ -245,10 +248,10 @@ const getItemProgress = (item) => {
 };
 
 const getStatusText = (item) => {
-  if (item.estado === 'servido') return 'Disfrutando';
-  if (item.estado === 'listo') return '¡Listo para servir!';
-  if (item.estado === 'en_preparacion') return 'Cocinando...';
-  return 'En espera';
+  if (item.estado === 'servido') return t('order_status.enjoying');
+  if (item.estado === 'listo') return t('order_status.ready_serve');
+  if (item.estado === 'en_preparacion') return t('order_status.cooking');
+  return t('order_status.waiting');
 };
 
 const getStatusClass = (item) => {

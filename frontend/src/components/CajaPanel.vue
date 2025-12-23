@@ -1,14 +1,14 @@
 <template>
   <div class="caja-panel">
     <div class="panel-header">
-      <h2>💰 Panel de Caja</h2>
+      <h2>{{ $t('cashier.title') }}</h2>
       <button @click="actualizarPedidos" class="btn btn-secondary" :disabled="loading">
-        🔄 Actualizar
+        {{ $t('cashier.update') }}
       </button>
     </div>
 
     <div class="panel-content">
-      <div v-if="loading" class="loading">Cargando pedidos...</div>
+      <div v-if="loading" class="loading">{{ $t('cashier.loading') }}</div>
 
       <template v-else>
         <!-- Notificaciones -->
@@ -21,14 +21,14 @@
 
         <!-- Pedidos Listos para Pagar -->
         <div class="section">
-          <h3>📋 Pedidos Listos para Pagar</h3>
+          <h3>{{ $t('cashier.orders_ready_pay') }}</h3>
           <div v-if="pedidosListosPagar.length === 0" class="empty-state">
-            Sin pedidos listos
+            {{ $t('cashier.no_orders_ready') }}
           </div>
           <div v-else class="pedidos-grid">
             <div v-for="pedido in pedidosListosPagar" :key="pedido.id" :class="['pedido-card', `estado-${pedido.estado}`]">
               <div class="card-header">
-                <span class="mesa">Mesa {{ pedido.mesa_numero }}</span>
+                <span class="mesa">{{ $t('common.table') }} {{ pedido.mesa_numero }}</span>
                 <span class="total">${{ pedido.total }}</span>
               </div>
               <div class="items-count">
@@ -41,14 +41,14 @@
                   class="btn btn-sm btn-secondary"
                   title="Imprimir cuenta para el cliente"
                 >
-                  🧾 Cuenta
+                  {{ $t('cashier.bill') }}
                 </button>
                 <button
                   @click="seleccionarPedido(pedido)"
                   class="btn btn-sm btn-primary"
                   title="Registrar el pago"
                 >
-                  💳 Pagar
+                  {{ $t('cashier.pay') }}
                 </button>
               </div>
             </div>
@@ -57,23 +57,23 @@
 
         <!-- Formulario de Pago -->
         <div v-if="pedidoSeleccionado" class="section pago-section">
-          <h3>💳 Registrar Pago</h3>
+          <h3>{{ $t('cashier.register_payment') }}</h3>
           
           <div class="pago-info">
             <div class="info-row">
-              <span>Mesa:</span>
+              <span>{{ $t('common.table') }}:</span>
               <strong>{{ pedidoSeleccionado.mesa_numero }}</strong>
             </div>
             <div class="info-row">
-              <span>Total del Pedido:</span>
+              <span>{{ $t('waiter.total') }}</span>
               <strong>${{ Math.round(pedidoSeleccionado.total || 0).toLocaleString() }}</strong>
             </div>
             <div v-if="pedidoSeleccionado.total_pagado > 0" class="info-row">
-              <span>Ya Pagado:</span>
+              <span>{{ $t('status.pagado') }}:</span>
               <strong class="text-success">${{ Math.round(pedidoSeleccionado.total_pagado || 0).toLocaleString() }}</strong>
             </div>
             <div class="info-row">
-              <span>Pendiente a Pagar:</span>
+              <span>{{ $t('cashier.amount_to_pay') }}:</span>
               <strong class="monto-total">${{ Math.round(saldoPendiente || pedidoSeleccionado.total || 0).toLocaleString() }}</strong>
             </div>
           </div>
@@ -81,19 +81,19 @@
           <!-- ✅ NUEVO: Selección de Propina -->
           <!-- Solo permitir cambiar propina en el primer pago -->
           <div class="form-group propina-section" v-if="!pedidoSeleccionado.total_pagado || pedidoSeleccionado.total_pagado === 0">
-            <label>Propina</label>
+            <label>{{ $t('cashier.tip') }}</label>
             <div class="propina-options">
               <label class="propina-option">
                 <input type="radio" v-model="opcionPropina" value="sin_propina" />
-                <span>Sin propina (Solo ${{ Math.round(pedidoSeleccionado.subtotal || pedidoSeleccionado.total || 0).toLocaleString() }})</span>
+                <span>{{ $t('cashier.tip_options.none') }} (Only ${{ Math.round(pedidoSeleccionado.subtotal || pedidoSeleccionado.total || 0).toLocaleString() }})</span>
               </label>
               <label class="propina-option">
                 <input type="radio" v-model="opcionPropina" value="sugerida" />
-                <span>Propina sugerida (${{ Math.round(pedidoSeleccionado.propina_monto || 0).toLocaleString() }})</span>
+                <span>{{ $t('cashier.tip_options.suggested') }} (${{ Math.round(pedidoSeleccionado.propina_monto || 0).toLocaleString() }})</span>
               </label>
               <label class="propina-option">
                 <input type="radio" v-model="opcionPropina" value="personalizada" />
-                <span>Propina personalizada</span>
+                <span>{{ $t('cashier.tip_options.custom') }}</span>
               </label>
             </div>
             <div v-if="opcionPropina === 'personalizada'" class="propina-input">
@@ -107,27 +107,27 @@
               />
             </div>
             <div class="total-con-propina">
-              <strong>Total a Pagar: ${{ Math.round(totalConPropina).toLocaleString() }}</strong>
+              <strong>{{ $t('waiter.total') }}: ${{ Math.round(totalConPropina).toLocaleString() }}</strong>
             </div>
           </div>
           
           <!-- Mensaje informativo si ya hubo pago parcial -->
           <div v-else class="form-group">
             <div class="info-box">
-              ℹ️ La propina ya fue establecida en el primer pago. Pendiente: ${{ Math.round(saldoPendiente || 0).toLocaleString() }}
+              {{ $t('cashier.tip_already_set', { amount: Math.round(saldoPendiente || 0).toLocaleString() }) }}
             </div>
           </div>
 
           <div class="form-group">
-            <label>Método de Pago</label>
+            <label>{{ $t('cashier.payment_method') }}</label>
             <div class="payment-methods">
               <button
                 v-for="metodo in metodoPagos"
-                :key="metodo"
-                @click="metodoSeleccionado = metodo"
-                :class="['metodo-btn', { 'metodo-active': metodoSeleccionado === metodo }]"
+                :key="metodo.name"
+                @click="metodoSeleccionado = metodo.name"
+                :class="['metodo-btn', { 'metodo-active': metodoSeleccionado === metodo.name }]"
               >
-                {{ obtenerEmojiMetodo(metodo) }} {{ metodo }}
+                {{ obtenerEmojiMetodo(metodo.name) }} {{ metodo.label }}
               </button>
             </div>
           </div>
@@ -135,7 +135,7 @@
           <!-- ✅ MODIFICADO: Input de monto para TODOS los métodos -->
           <div v-if="metodoSeleccionado" class="form-group">
             <label>
-              {{ metodoSeleccionado === 'efectivo' ? 'Monto Recibido' : 'Monto a Pagar' }}
+              {{ metodoSeleccionado === 'efectivo' ? $t('cashier.amount_received') : $t('cashier.amount_to_pay') }}
             </label>
             <div style="display: flex; gap: 8px; align-items: center;">
               <input
@@ -158,7 +158,7 @@
               </button>
             </div>
             <div v-if="metodoSeleccionado === 'efectivo' && montoRecibido && montoRecibido > (saldoPendiente || pedidoSeleccionado.total)" class="cambio">
-              💵 Cambio: ${{ (montoRecibido - pedidoSeleccionado.total).toFixed(2) }}
+              {{ $t('cashier.change') }} ${{ (montoRecibido - pedidoSeleccionado.total).toFixed(2) }}
             </div>
              <div v-if="montoRecibido && montoRecibido < pedidoSeleccionado.total" class="alerta">
               🔹 Pago parcial, quedará saldo pendiente.
@@ -173,27 +173,27 @@
             :disabled="!metodoSeleccionado || (metodoSeleccionado === 'efectivo' && (!montoRecibido || montoRecibido <= 0))"
           >
 
-              ✅ Confirmar Pago
+              {{ $t('cashier.confirm_payment') }}
             </button>
             <button
               @click="cancelarPago"
               class="btn btn-secondary btn-full"
             >
-              ❌ Cancelar
+              {{ $t('cashier.cancel') }}
             </button>
           </div>
         </div>
 
         <!-- Historial de Pagos -->
         <div class="section">
-          <h3>📝 Pagos Hoy</h3>
+          <h3>{{ $t('cashier.payments_today') }}</h3>
           <div v-if="pedidosPagadosHoy.length === 0" class="empty-state">
-            Sin pagos registrados
+            {{ $t('cashier.no_payments') }}
           </div>
           <div v-else class="pagos-list">
             <div v-for="pedido in pedidosPagadosHoy" :key="pedido.id" class="pago-item">
               <div class="pago-info-item">
-                <span class="mesa">Mesa {{ pedido.mesa_numero }}</span>
+                <span class="mesa">{{ $t('common.table') }} {{ pedido.mesa_numero }}</span>
                 <span class="monto">${{ pedido.total }}</span>
               </div>
               <div class="pago-detalles-extra">
@@ -202,7 +202,7 @@
                 </span>
                 <span class="timestamp">{{ formatearHora(pedido.created_at) }}</span>
                 <button @click="verDetallesPago(pedido.id)" class="btn btn-sm btn-info">
-                  👁️ Ver
+                  {{ $t('cashier.view') }}
                 </button>
               </div>
             </div>
@@ -215,18 +215,33 @@
     <div v-if="pagoDetalle" class="modal-overlay" @click.self="cerrarDetallePago">
       <div class="modal-detalle">
         <div class="modal-header">
-          <h3>💳 Detalles del Pago</h3>
+          <h3>{{ $t('cashier.payment_details') }}</h3>
           <button @click="cerrarDetallePago" class="btn-cerrar">✕</button>
         </div>
         <div class="modal-body">
           <div class="detalle-info">
             <div class="info-row">
-              <span>Mesa:</span>
+              <span>{{ $t('common.table') }}:</span>
               <strong>{{ pagoDetalle.mesa_numero }}</strong>
             </div>
-            <div class="info-row" v-if="pagoDetalle.metodo_pago">
-              <span>Método de Pago:</span>
-              <strong>{{ obtenerEmojiMetodo(pagoDetalle.metodo_pago) }} {{ pagoDetalle.metodo_pago.toUpperCase() }}</strong>
+            <div class="info-row" v-if="pagoDetalle.pagos && pagoDetalle.pagos.length > 0">
+              <div style="width: 100%;">
+                <span><strong>Pagos:</strong></span>
+                <ul style="list-style: none; padding: 0; margin-top: 5px;">
+                  <li v-for="(pago, pIndex) in pagoDetalle.pagos" :key="pIndex" style="font-size: 0.9em; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                    <span>
+                      {{ new Date(pago.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }} - 
+                      {{ obtenerEmojiMetodo(pago.metodo_pago) }} {{ $te('cashier.methods.' + pago.metodo_pago) ? $t('cashier.methods.' + pago.metodo_pago) : pago.metodo_pago.toUpperCase() }}
+                    </span>
+                    <strong>${{ Number(pago.monto).toLocaleString() }}</strong>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            
+            <div class="info-row" v-else-if="pagoDetalle.metodo_pago">
+              <span>{{ $t('cashier.payment_method') }}:</span>
+              <strong>{{ obtenerEmojiMetodo(pagoDetalle.metodo_pago) }} {{ $te('cashier.methods.' + pagoDetalle.metodo_pago) ? $t('cashier.methods.' + pagoDetalle.metodo_pago) : pagoDetalle.metodo_pago.toUpperCase() }}</strong>
             </div>
             <div class="info-row">
               <span>Hora:</span>
@@ -239,7 +254,7 @@
           </div>
 
           <div class="detalle-items">
-            <h4>Items del Pedido</h4>
+            <h4>Items</h4>
             <div class="items-tabla">
               <div class="item-row header-row">
                 <span>Cant.</span>
@@ -257,6 +272,10 @@
           </div>
 
           <div class="detalle-total">
+             <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9em; font-weight: normal;">
+              <span>{{ $t('ticket.tip') }}:</span>
+              <span>${{ Number(pagoDetalle.propina_monto || 0).toLocaleString() }}</span>
+            </div>
             <span>TOTAL:</span>
             <strong>${{ pagoDetalle.total }}</strong>
           </div>
@@ -272,7 +291,9 @@ import { usePedidoStore } from '../stores/pedidoStore';
 import { useUsuarioStore } from '../stores/usuarioStore';
 import api from '../api';
 import { useNotificaciones } from '../composables/useNotificaciones';
+import { useI18n } from 'vue-i18n';
 
+const { t } = useI18n();
 const { notificaciones, cerrarNotificacion } = useNotificaciones('facturero');
 
 const pedidoStore = usePedidoStore();
@@ -289,7 +310,23 @@ const pagoDetalle = ref(null);
 const opcionPropina = ref('sugerida'); // 'sin_propina' | 'personalizada' | 'sugerida'
 const propinaPersonalizada = ref(null);
 
-const metodoPagos = ['efectivo', 'tarjeta', 'nequi', 'otro_digital'];
+// ✅ NUEVO: Métodos de pago dinámicos
+const metodoPagos = ref([]);
+
+const cargarMetodosPago = async () => {
+  try {
+    const res = await api.getPaymentMethods();
+    // Filtrar solo activos
+    metodoPagos.value = res.data.filter(m => m.active);
+  } catch (err) {
+    console.error('Error cargando métodos de pago:', err);
+    // Fallback
+    metodoPagos.value = [
+      { name: 'efectivo', label: 'Efectivo', is_digital: false },
+      { name: 'tarjeta', label: 'Tarjeta', is_digital: true }
+    ];
+  }
+};
 
 const pedidosListosPagar = computed(() => {
   const listos = pedidoStore.pedidosPorEstado.listo_pagar || [];
@@ -348,7 +385,7 @@ const actualizarPedidos = async () => {
     
     pedidosPagadosHoy.value = pedidosHoyRes.data.filter(p => 
       p.estado === 'pagado' && 
-      String(p.usuario_facturero_id) === String(usuarioStore.usuario.id)
+      p.pagos && p.pagos.some(pago => String(pago.cajero_id) === String(usuarioStore.usuario.id))
     );
   } catch (err) {
     console.error('Error:', err);
@@ -435,7 +472,8 @@ const prepararTicket = (pedido, tipo, metodo = null, extras = {}) => {
     metodoPago: metodo,
     montoRecibido: extras.montoRecibido ?? null,
     montoAplicado: extras.montoAplicado ?? null,
-    cambio: extras.cambio ?? null
+    cambio: extras.cambio ?? null,
+    pagos: pedido.pagos || [] // ✅ NUEVO: Incluir historial de pagos
   };
 };
 
@@ -449,10 +487,10 @@ const imprimirContenido = (data) => {
     return;
   }
 
-  const contenidoHTML = `
+    const contenidoHTML = `
     <html>
     <head>
-      <title>Ticket - ${import.meta.env.VITE_APP_TITLE}</title>
+      <title>${t('ticket.title')} - ${import.meta.env.VITE_APP_TITLE}</title>
       <style>
         body { font-family: 'Courier New', monospace; width: 300px; margin: 0 auto; padding: 10px; font-size: 12px; }
         .header { text-align: center; margin-bottom: 10px; }
@@ -470,21 +508,21 @@ const imprimirContenido = (data) => {
     <body>
       <div class="header">
         <h3>${import.meta.env.VITE_APP_TITLE.toUpperCase()}</h3>
-        <p>NIT: ${import.meta.env.VITE_APP_NIT}</p>
-        <p>Fecha: ${new Date().toLocaleString()}</p>
-        <p>Mesa: ${data.mesa}</p>
-        <p>Cajero: ${data.cajero}</p>
+        <p>${t('ticket.nit')}: ${import.meta.env.VITE_APP_NIT}</p>
+        <p>${t('ticket.date')}: ${new Date().toLocaleString()}</p>
+        <p>${t('common.table')}: ${data.mesa}</p>
+        <p>${t('ticket.server')}: ${data.cajero}</p>
         <div class="divider"></div>
-        <p>${data.tipo === 'pago' ? 'COMPROBANTE DE PAGO' : 'CUENTA DE COBRO'}</p>
-        ${data.metodoPago ? `<p>Método: ${data.metodoPago.toUpperCase()}</p>` : ''}
+        <p>${data.tipo === 'pago' ? t('ticket.payment_title') : t('ticket.bill_title')}</p>
+        ${data.metodoPago ? `<p>${t('ticket.method')}: ${data.metodoPago.toUpperCase()}</p>` : ''}
         <div class="divider"></div>
       </div>
 
       <div class="items">
         <div class="row" style="font-weight:bold; border-bottom:1px solid black;">
-          <span class="col-cant">Cant</span>
-          <span class="col-desc">Desc</span>
-          <span class="col-total">Total</span>
+          <span class="col-cant">${t('ticket.qty')}</span>
+          <span class="col-desc">${t('ticket.desc')}</span>
+          <span class="col-total">${t('ticket.total')}</span>
         </div>
         ${data.items.map(item => `
           <div class="row">
@@ -498,27 +536,27 @@ const imprimirContenido = (data) => {
       <div class="total-section">
         <div class="divider"></div>
         <div class="row">
-          <span>Subtotal:</span>
+          <span>${t('ticket.subtotal')}:</span>
           <span>$${Math.round(data.subtotal).toLocaleString()}</span>
         </div>
         <div class="row">
-          <span>Propina (${data.propinaMonto > 0 ? Math.round((data.propinaMonto / data.subtotal) * 100) : 0}%):</span>
+          <span>${t('ticket.tip')} (${data.propinaMonto > 0 ? Math.round((data.propinaMonto / data.subtotal) * 100) : 0}%):</span>
           <span>$${Math.round(data.propinaMonto).toLocaleString()}</span>
         </div>
         <div class="divider"></div>
         <div class="row" style="font-size: 18px;">
-          <span>TOTAL:</span>
+          <span>${t('ticket.total').toUpperCase()}:</span>
           <span>$${Math.round(data.totalPedido).toLocaleString()}</span>
         </div>
         ${data.montoRecibido != null ? `
           <div class="row">
-            <span>Recibido:</span>
+            <span>${t('ticket.received')}:</span>
             <span>$${Math.round(data.montoRecibido).toLocaleString()}</span>
           </div>
         ` : ''}
         ${data.cambio != null ? `
           <div class="row">
-            <span>Cambio:</span>
+            <span>${t('ticket.change')}:</span>
             <span>$${Math.round(data.cambio).toLocaleString()}</span>
           </div>
         ` : ''}
@@ -526,9 +564,25 @@ const imprimirContenido = (data) => {
       </div>
 
 
+      ${data.pagos && data.pagos.length > 0 ? `
+        <div class="pagos-history" style="margin-top: 10px;">
+           <div class="row" style="font-weight:bold;">
+            <span>Historial de Pagos</span>
+          </div>
+          <div class="divider"></div>
+          ${data.pagos.map(p => `
+            <div class="row" style="font-size: 11px; color: #333;">
+              <span>${new Date(p.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} ${p.metodo_pago ? p.metodo_pago.toUpperCase() : 'PAGO'}</span>
+              <span>$${Math.round(p.monto).toLocaleString()}</span>
+            </div>
+          `).join('')}
+          <div class="divider"></div>
+        </div>
+      ` : ''}
+
       <div class="footer">
-        <p>¡Gracias por su visita!</p>
-        <p>Propina voluntaria sugerida</p>
+        <p>${t('ticket.thanks')}</p>
+        <p>${t('ticket.tip_suggested')}</p>
       </div>
       
       <script>
@@ -559,7 +613,7 @@ const pedirCuenta = async (pedido) => {
     
   } catch (err) {
     console.error(err);
-    alert('❌ Error al procesar cuenta');
+    alert('❌ ' + t('common.error'));
   }
 };
 
@@ -649,38 +703,49 @@ const procesarPago = async () => {
       ? Math.max(montoRecibidoEstaVez - montoQueSeRegistra, 0)
       : 0;
 
-    // Ticket usa datos ACTUALIZADOS del pedido
-    prepararTicket(
-      pedidoSeleccionado.value,
-      'pago',
-      metodoSeleccionado.value,
-      {
-        montoRecibido: montoRecibidoEstaVez,
-        montoAplicado: montoQueSeRegistra,
-        cambio
-      }
-    );
-
-    alert(
-      `✅ Pago registrado.\n` +
-      `Pagado ahora: $${Math.round(montoQueSeRegistra).toLocaleString()}\n` +
-      `Total pagado: $${Math.round(total_pagado).toLocaleString()}\n` +
-      `Pendiente: $${Math.round(pendiente).toLocaleString()}`
-    );
-
-    imprimirContenido(ticketData.value);
-
+    // ✅ LOGICA DE IMPRESIÓN CORREGIDA
+    // Solo imprimir si se completó el pago (pendiente <= 0)
     if (pendiente <= 0) {
+      // Fetch completo para tener el historial de pagos
+      const fullOrderRes = await api.getPedido(pedidoSeleccionado.value.id);
+      const fullOrder = fullOrderRes.data;
+
+      prepararTicket(
+        fullOrder,
+        'pago',
+        metodoSeleccionado.value, // Método del último pago (aunque mostramos historial)
+        {
+          montoRecibido: montoRecibidoEstaVez,
+          montoAplicado: montoQueSeRegistra,
+          cambio
+        }
+      );
+
+      alert(t('cashier.alert_payment_registered') +
+        `\nPagado ahora: $${Math.round(montoQueSeRegistra).toLocaleString()}\n` +
+        `Total pagado: $${Math.round(total_pagado).toLocaleString()}\n` +
+        `¡Pago completado! Imprimiendo ticket...`
+      );
+
+      imprimirContenido(ticketData.value);
+      
       cancelarPago();
       await actualizarPedidos();
     } else {
-      // aún falta saldo - resetear form pero mantener pedido seleccionado
+      // Pago parcial: Solo notificar, NO imprimir
+      alert(t('cashier.alert_payment_registered') +
+        `\nPagado ahora: $${Math.round(montoQueSeRegistra).toLocaleString()}\n` +
+        `Pendiente: $${Math.round(pendiente).toLocaleString()}`
+      );
+      
+      // Resetear form para siguiente abono
       metodoSeleccionado.value = '';
       montoRecibido.value = null;
     }
+
   } catch (err) {
     console.error(err);
-    const msg = err.response?.data?.error || 'Error al registrar pago';
+    const msg = err.response?.data?.error || t('cashier.alert_error_payment');
     alert('❌ ' + msg);
     await actualizarPedidos();
   }
@@ -703,6 +768,7 @@ const cerrarDetallePago = () => {
 
 onMounted(() => {
   actualizarPedidos();
+  cargarMetodosPago(); // ✅ NUEVO
 });
 </script>
 <style src="../assets/styles/CajaPanel.css" scoped></style>
