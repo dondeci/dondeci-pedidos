@@ -139,6 +139,25 @@ router.post('/', async (req, res) => {
         `UPDATE pedidos SET estado = 'pagado', completed_at = CURRENT_TIMESTAMP WHERE id = $1`,
         [pedido_id]
       );
+
+      // ✅ NUEVO: Descontar stock_actual y liberar stock_reservado al pagar
+      const itemsRes = await client.query(`
+        SELECT pi.menu_item_id, SUM(pi.cantidad) as cantidad_total
+        FROM pedido_items pi
+        JOIN menu_items mi ON pi.menu_item_id = mi.id
+        WHERE pi.pedido_id = $1 AND mi.usa_inventario = TRUE
+        GROUP BY pi.menu_item_id
+      `, [pedido_id]);
+
+      for (const item of itemsRes.rows) {
+        await client.query(`
+          UPDATE menu_items 
+          SET stock_actual = GREATEST(stock_actual - $1, 0),
+              stock_reservado = GREATEST(stock_reservado - $1, 0)
+          WHERE id = $2
+        `, [item.cantidad_total, item.menu_item_id]);
+      }
+
     } else if (pedido.estado !== 'en_caja') {
       nuevoEstado = 'en_caja';
       await client.query(

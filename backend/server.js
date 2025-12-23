@@ -97,6 +97,7 @@ async function initDatabase() {
         await pool.query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS stock_minimo INTEGER`);
         await pool.query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS estado_inventario TEXT DEFAULT 'disponible' CHECK(estado_inventario IN ('disponible', 'poco_stock', 'no_disponible'))`);
         await pool.query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS image_url VARCHAR(500)`);
+        await pool.query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS stock_reservado INTEGER DEFAULT 0`);
 
         // Crear tabla de mesas
         await pool.query(`

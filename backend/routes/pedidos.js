@@ -75,19 +75,15 @@ router.post('/', async (req, res) => {
         await runAsync(pedidoQuery, [pedido_id, mesa_numero, usuario_mesero_id, subtotal, propinaSugerida, total, notas || null]);
 
         for (const item of items) {
-            // ✅ OBTENER CONFIGURACIÓN DEL ITEM (Para saber si es directo)
-            const menuItemData = await getAsync('SELECT es_directo, usa_inventario, stock_actual, stock_minimo, estado_inventario FROM menu_items WHERE id = $1', [item.menu_item_id]);
+            // ✅ OBTENER CONFIGURACIÓN DEL ITEM (incluir stock_reservado)
+            const menuItemData = await getAsync('SELECT es_directo, usa_inventario, stock_actual, stock_reservado, stock_minimo, estado_inventario FROM menu_items WHERE id = $1', [item.menu_item_id]);
 
             // ✅ DETERMINAR ESTADO INICIAL
             const estadoInicial = menuItemData?.es_directo ? 'listo' : 'pendiente';
-            // Si es directo, guardamos la hora de completado de una vez
-            const completedAt = menuItemData?.es_directo ? 'CURRENT_TIMESTAMP' : 'NULL';
 
             for (let i = 0; i < item.cantidad; i++) {
                 const item_id = uuidv4();
 
-                // Insertar item con estado dinámico
-                // Nota: Usamos concatenación segura o lógica condicional para CURRENT_TIMESTAMP
                 if (menuItemData?.es_directo) {
                     await runAsync(
                         `INSERT INTO pedido_items(id, pedido_id, menu_item_id, cantidad, precio_unitario, notas, estado, completed_at) 
@@ -95,7 +91,6 @@ router.post('/', async (req, res) => {
                         [item_id, pedido_id, item.menu_item_id, 1, item.precio_unitario, item.notas || null, 'listo']
                     );
 
-                    // ✅ NOTIFICAR AL MESERO DE INMEDIATO
                     req.app.get('io').emit('item_ready', {
                         item_id: item_id,
                         pedido_id: pedido_id,
@@ -103,7 +98,7 @@ router.post('/', async (req, res) => {
                         item_nombre: item.nombre,
                         mesero_id: usuario_mesero_id,
                         cantidad: 1,
-                        completed_at: new Date().toISOString(), // Para el timer del frontend
+                        completed_at: new Date().toISOString(),
                         tiempoDesdeReady: 0
                     });
 
@@ -116,22 +111,31 @@ router.post('/', async (req, res) => {
                 }
             }
 
-            // Lógica de Inventario (sin cambios, solo usando menuItemData ya consultado)
+            // ✅ NUEVA LÓGICA: Reservar stock en lugar de descontarlo
             if (menuItemData && menuItemData.usa_inventario) {
-                const nuevoStock = (menuItemData.stock_actual || 0) - item.cantidad;
+                const stockDisponible = (menuItemData.stock_actual || 0) - (menuItemData.stock_reservado || 0);
+
+                // Validar que hay stock disponible
+                if (stockDisponible < item.cantidad) {
+                    throw new Error(`Stock insuficiente para ${item.nombre}. Disponible: ${stockDisponible}`);
+                }
+
+                const nuevoReservado = (menuItemData.stock_reservado || 0) + item.cantidad;
                 let nuevoEstado = menuItemData.estado_inventario;
 
-                if (nuevoStock <= 0) {
+                // Actualizar estado basado en stock disponible
+                const nuevoDisponible = stockDisponible - item.cantidad;
+                if (nuevoDisponible <= 0) {
                     nuevoEstado = 'no_disponible';
-                } else if (nuevoStock <= menuItemData.stock_minimo) {
+                } else if (nuevoDisponible <= menuItemData.stock_minimo) {
                     nuevoEstado = 'poco_stock';
                 }
 
                 await runAsync(`
                     UPDATE menu_items 
-                    SET stock_actual = $1, estado_inventario = $2
+                    SET stock_reservado = $1, estado_inventario = $2
                     WHERE id = $3
-                `, [Math.max(0, nuevoStock), nuevoEstado, item.menu_item_id]);
+                `, [nuevoReservado, nuevoEstado, item.menu_item_id]);
             }
         }
 
@@ -303,6 +307,36 @@ router.put('/:id/estado', async (req, res) => {
         params.push(req.params.id);
 
         await runAsync(updateQuery, params);
+
+        // ✅ NUEVO: Si se cancela el pedido, devolver stock_reservado
+        if (estado === 'cancelado') {
+            const items = await allAsync(`
+                SELECT pi.menu_item_id, SUM(pi.cantidad) as cantidad_total, 
+                       mi.stock_reservado, mi.stock_actual, mi.stock_minimo
+                FROM pedido_items pi
+                JOIN menu_items mi ON pi.menu_item_id = mi.id
+                WHERE pi.pedido_id = $1 AND mi.usa_inventario = TRUE
+                GROUP BY pi.menu_item_id, mi.stock_reservado, mi.stock_actual, mi.stock_minimo
+            `, [req.params.id]);
+
+            for (const item of items) {
+                const nuevoReservado = Math.max((item.stock_reservado || 0) - item.cantidad_total, 0);
+                const stockDisponible = (item.stock_actual || 0) - nuevoReservado;
+
+                let nuevoEstado = 'disponible';
+                if (stockDisponible <= 0) {
+                    nuevoEstado = 'no_disponible';
+                } else if (stockDisponible <= item.stock_minimo) {
+                    nuevoEstado = 'poco_stock';
+                }
+
+                await runAsync(`
+                    UPDATE menu_items 
+                    SET stock_reservado = $1, estado_inventario = $2
+                    WHERE id = $3
+                `, [nuevoReservado, nuevoEstado, item.menu_item_id]);
+            }
+        }
 
         req.app.get('io').emit('pedido_actualizado', { id: req.params.id, estado });
 
@@ -578,7 +612,7 @@ router.post('/:id/items', async (req, res) => {
 
         for (const item of items) {
             const menuItemData = await getAsync(
-                'SELECT id, nombre, es_directo, usa_inventario, stock_actual, stock_minimo, estado_inventario FROM menu_items WHERE id = $1',
+                'SELECT id, nombre, es_directo, usa_inventario, stock_actual, stock_reservado, stock_minimo, estado_inventario FROM menu_items WHERE id = $1',
                 [item.menu_item_id]
             );
 
@@ -586,11 +620,14 @@ router.post('/:id/items', async (req, res) => {
                 return res.status(400).json({ error: `Item de menú ${item.menu_item_id} no encontrado` });
             }
 
-            // Verificar inventario
-            if (menuItemData.usa_inventario && menuItemData.stock_actual < item.cantidad) {
-                return res.status(400).json({
-                    error: `Stock insuficiente para ${menuItemData.nombre}. Disponible: ${menuItemData.stock_actual}`
-                });
+            // Verificar inventario (stock disponible = stock_actual - stock_reservado)
+            if (menuItemData.usa_inventario) {
+                const stockDisponible = (menuItemData.stock_actual || 0) - (menuItemData.stock_reservado || 0);
+                if (stockDisponible < item.cantidad) {
+                    return res.status(400).json({
+                        error: `Stock insuficiente para ${menuItemData.nombre}. Disponible: ${stockDisponible}`
+                    });
+                }
             }
 
             const estadoInicial = menuItemData.es_directo ? 'listo' : 'pendiente';
@@ -635,22 +672,29 @@ router.post('/:id/items', async (req, res) => {
 
             totalAdicional += item.cantidad * item.precio_unitario;
 
-            // Actualizar inventario si aplica
+            // ✅ NUEVA LÓGICA: Reservar stock en lugar de descontarlo
             if (menuItemData.usa_inventario) {
-                const nuevoStock = (menuItemData.stock_actual || 0) - item.cantidad;
+                const stockDisponible = (menuItemData.stock_actual || 0) - (menuItemData.stock_reservado || 0);
+
+                if (stockDisponible < item.cantidad) {
+                    throw new Error(`Stock insuficiente para ${menuItemData.nombre}. Disponible: ${stockDisponible}`);
+                }
+
+                const nuevoReservado = (menuItemData.stock_reservado || 0) + item.cantidad;
                 let nuevoEstado = menuItemData.estado_inventario;
 
-                if (nuevoStock <= 0) {
+                const nuevoDisponible = stockDisponible - item.cantidad;
+                if (nuevoDisponible <= 0) {
                     nuevoEstado = 'no_disponible';
-                } else if (nuevoStock <= menuItemData.stock_minimo) {
+                } else if (nuevoDisponible <= menuItemData.stock_minimo) {
                     nuevoEstado = 'poco_stock';
                 }
 
                 await runAsync(`
                     UPDATE menu_items 
-                    SET stock_actual = $1, estado_inventario = $2
+                    SET stock_reservado = $1, estado_inventario = $2
                     WHERE id = $3
-                `, [Math.max(0, nuevoStock), nuevoEstado, item.menu_item_id]);
+                `, [nuevoReservado, nuevoEstado, item.menu_item_id]);
             }
         }
 
@@ -712,7 +756,7 @@ router.delete('/:id/items/:itemId', async (req, res) => {
 
         // Obtener el item con información del menú
         const item = await getAsync(`
-            SELECT pi.*, mi.nombre, mi.usa_inventario, mi.stock_actual, mi.stock_minimo
+            SELECT pi.*, mi.nombre, mi.usa_inventario, mi.stock_actual, mi.stock_reservado, mi.stock_minimo
             FROM pedido_items pi
             JOIN menu_items mi ON pi.menu_item_id = mi.id
             WHERE pi.id = $1 AND pi.pedido_id = $2
@@ -754,19 +798,25 @@ router.delete('/:id/items/:itemId', async (req, res) => {
         // Eliminar el item
         await runAsync('DELETE FROM pedido_items WHERE id = $1', [itemId]);
 
-        // Devolver stock si usa inventario y está pendiente (no en_preparacion porque ya usó ingredientes)
-        if (item.usa_inventario && item.estado === 'pendiente') {
-            const nuevoStock = (item.stock_actual || 0) + item.cantidad;
+        // ✅ NUEVA LÓGICA: Devolver stock_reservado si el pedido NO está pagado
+        const pedido = await getAsync('SELECT estado FROM pedidos WHERE id = $1', [pedidoId]);
+
+        if (item.usa_inventario && pedido.estado !== 'pagado') {
+            const nuevoReservado = Math.max((item.stock_reservado || 0) - item.cantidad, 0);
+            const stockDisponible = (item.stock_actual || 0) - nuevoReservado;
+
             let nuevoEstado = 'disponible';
-            if (nuevoStock <= item.stock_minimo) {
+            if (stockDisponible <= 0) {
+                nuevoEstado = 'no_disponible';
+            } else if (stockDisponible <= item.stock_minimo) {
                 nuevoEstado = 'poco_stock';
             }
 
             await runAsync(`
                 UPDATE menu_items 
-                SET stock_actual = $1, estado_inventario = $2
+                SET stock_reservado = $1, estado_inventario = $2
                 WHERE id = $3
-            `, [nuevoStock, nuevoEstado, item.menu_item_id]);
+            `, [nuevoReservado, nuevoEstado, item.menu_item_id]);
         }
 
         // Recalcular total del pedido
