@@ -253,6 +253,9 @@
         "confirm_payment": "✅ Confirm Payment",
         "cancel": "❌ Cancel",
         "change": "💵 Change:",
+        "partial_payment_warning": "Partial payment, balance will remain pending.",
+        "single_payment": "Single Payment",
+        "multiple_payment": "Multiple Payment",
         "alert_payment_registered": "✅ Payment registered.",
         "alert_error_payment": "❌ Error registering payment"
     },

@@ -131,6 +131,16 @@ router.post('/', async (req, res) => {
     const totalPagadoFinal = totalPagadoAntes + montoTotalOperacion;
     const pendiente = Math.max(totalPedido - totalPagadoFinal, 0); // Evitar negativos por decimales
 
+    // 🔍 DEBUG: Logging para diagnosticar problemas de pago
+    console.log('💰 CÁLCULO DE PAGO:', {
+      totalPedido,
+      totalPagadoAntes,
+      montoTotalOperacion,
+      totalPagadoFinal,
+      pendiente,
+      'pendiente < 1': pendiente < 1
+    });
+
     let nuevoEstado = pedido.estado;
 
     if (pendiente < 1) { // Consideramos pagado si debe menos de 1 peso (ajuste redondeo)
@@ -185,7 +195,12 @@ router.post('/', async (req, res) => {
       monto: montoTotalOperacion,
       pagos_multiples: pagos.length > 1,
       total_pagado: totalPagadoFinal,
-      pendiente
+      pendiente,
+      // ✅ NUEVO: Agregar detalles de los pagos para el ticket
+      pagos_detalles: pagos.map(p => ({
+        metodo: p.metodo_pago,
+        monto: p.monto
+      }))
     });
 
     res.json({

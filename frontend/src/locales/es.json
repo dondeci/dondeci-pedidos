@@ -253,6 +253,9 @@
         "confirm_payment": "✅ Confirmar Pago",
         "cancel": "❌ Cancelar",
         "change": "💵 Cambio:",
+        "partial_payment_warning": "Pago parcial, quedará saldo pendiente.",
+        "single_payment": "Pago Único",
+        "multiple_payment": "Pago Múltiple",
         "alert_payment_registered": "✅ Pago registrado.",
         "alert_error_payment": "❌ Error al registrar pago"
     },

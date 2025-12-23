@@ -17,7 +17,7 @@
       </div>
       <div class="info-row">
         <span>{{ $t('cashier.amount_to_pay') }}:</span>
-        <strong class="monto-total">${{ Math.round(saldoPendiente || pedido.total || 0).toLocaleString() }}</strong>
+        <strong class="monto-total">${{ Math.round(totalAPagar).toLocaleString() }}</strong>
       </div>
     </div>
 
@@ -66,13 +66,13 @@
               @click="modoPago = 'unico'" 
               :class="['btn', modoPago === 'unico' ? 'btn-primary' : 'btn-outline-secondary']"
           >
-              Pago Único
+              {{ $t('cashier.single_payment') || 'Pago Único' }}
           </button>
           <button 
               @click="modoPago = 'multiple'" 
               :class="['btn', modoPago === 'multiple' ? 'btn-primary' : 'btn-outline-secondary']"
           >
-              Pago Múltiple
+              {{ $t('cashier.multiple_payment') || 'Pago Múltiple' }}
           </button>
       </div>
     </div>
@@ -101,15 +101,15 @@
             <input
               v-model.number="montoRecibido"
               type="number"
-              :placeholder="metodoSeleccionado === 'efectivo' ? '0.00' : `Max: ${Math.round(saldoPendiente || pedido.total || 0).toLocaleString()}`"
+              :placeholder="metodoSeleccionado === 'efectivo' ? '0.00' : `Max: ${Math.round(totalAPagar).toLocaleString()}`"
               min="0"
-              :max="saldoPendiente || pedido.total"
+              :max="totalAPagar"
               step="100"
               class="monto-input"
               style="flex: 1;"
             />
             <button 
-              @click="montoRecibido = Math.round(saldoPendiente || pedido.total || 0)"
+              @click="montoRecibido = Math.round(totalAPagar)"
               class="btn btn-secondary btn-sm"
               type="button"
               style="white-space: nowrap;"
@@ -117,11 +117,11 @@
               💰 Total
             </button>
           </div>
-          <div v-if="metodoSeleccionado === 'efectivo' && montoRecibido && montoRecibido > (saldoPendiente || pedido.total)" class="cambio">
-            {{ $t('cashier.change') }} ${{ (montoRecibido - pedido.total).toFixed(2) }}
+          <div v-if="metodoSeleccionado === 'efectivo' && montoRecibido && montoRecibido > totalAPagar" class="cambio">
+            {{ $t('cashier.change') }} ${{ Math.round(montoRecibido - totalAPagar).toLocaleString() }}
           </div>
-           <div v-if="montoRecibido && montoRecibido < pedido.total" class="alerta">
-            🔹 Pago parcial, quedará saldo pendiente.
+          <div v-if="modoPago === 'unico' && montoRecibido && montoRecibido < totalAPagar" class="alerta-parcial">
+            🔵 {{ $t('cashier.partial_payment_warning') || 'Pago parcial, quedará saldo pendiente.' }}
           </div>
         </div>
     </div>
@@ -245,13 +245,23 @@ const totalConPropina = computed(() => {
   }
 });
 
+// ✅ NUEVO: Total a pagar considerando propina seleccionada
+const totalAPagar = computed(() => {
+  // Si es primer pago, usar totalConPropina (que considera la propina seleccionada)
+  if (esPrimerPago.value) {
+    return totalConPropina.value;
+  }
+  // Si ya hay pagos previos, usar el saldo pendiente
+  return props.saldoPendiente != null ? props.saldoPendiente : props.pedido.total;
+});
+
+
 const totalIngresadoMultiple = computed(() => {
     return Object.values(pagosMultiples.value).reduce((sum, val) => sum + (Number(val) || 0), 0);
 });
 
 const restanteMultiple = computed(() => {
-  const total = props.saldoPendiente != null ? props.saldoPendiente : props.pedido.total;
-  return total - totalIngresadoMultiple.value;
+  return totalAPagar.value - totalIngresadoMultiple.value;
 });
 
 const obtenerEmojiMetodo = (metodo) => {
@@ -275,8 +285,8 @@ const getPropinaFinal = () => {
 const procesarPago = async () => {
   if (!metodoSeleccionado.value) return;
 
-  const totalPedido = Number(props.pedido.total);
-  const pendienteActual = props.saldoPendiente != null ? Number(props.saldoPendiente) : totalPedido;
+  // ✅ USAR totalAPagar en lugar de pendienteActual
+  const pendienteActual = totalAPagar.value;
   
   if (!montoRecibido.value || montoRecibido.value <= 0) {
     alert('Ingresa un monto válido');
@@ -299,6 +309,16 @@ const procesarPago = async () => {
   try {
     const propinaFinal = getPropinaFinal();
     
+    // ✅ NUEVO: Emitir evento ANTES de procesar el pago para guardar la info
+    emit('pago-por-procesar', {
+      metodo: metodoSeleccionado.value,
+      montoRecibido: montoRecibidoEstaVez,
+      montoAplicado: montoQueSeRegistra,
+      cambio: metodoSeleccionado.value === 'efectivo' ? Math.max(montoRecibidoEstaVez - montoQueSeRegistra, 0) : 0,
+      esMultiple: false,
+      pedidoId: props.pedido.id
+    });
+    
     const res = await api.registrarPago(
       props.pedido.id,
       props.usuarioId,
@@ -310,6 +330,14 @@ const procesarPago = async () => {
     const cambio = metodoSeleccionado.value === 'efectivo'
       ? Math.max(montoRecibidoEstaVez - montoQueSeRegistra, 0)
       : 0;
+    
+    // 🔍 DEBUG: Ver qué contiene la respuesta del backend
+    console.log('💰 Enviando pago único:', { 
+      pedido_id: props.pedido.id, 
+      monto: montoQueSeRegistra, 
+      metodo_pago: metodoSeleccionado.value 
+    });
+    console.log('📦 Respuesta del backend (res.data):', res.data);
     
     emit('pago-registrado', { 
         data: res.data, 

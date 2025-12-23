@@ -62,6 +62,7 @@
             :metodos-pago="metodoPagos"
             :usuario-id="usuarioStore.usuario.id"
             :saldo-pendiente="saldoPendiente"
+            @pago-por-procesar="onPagoPorProcesar"
             @pago-registrado="onPagoRegistrado"
             @cancelar="cancelarPago"
           />
@@ -172,13 +173,14 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { usePedidoStore } from '../stores/pedidoStore';
 import { useUsuarioStore } from '../stores/usuarioStore';
 import api from '../api';
 import { useNotificaciones } from '../composables/useNotificaciones';
 import { useI18n } from 'vue-i18n';
 import CajaPaymentForm from './CajaPaymentForm.vue';
+import socket from '../socket';
 
 const { t } = useI18n();
 const { notificaciones, cerrarNotificacion } = useNotificaciones('facturero');
@@ -193,6 +195,9 @@ const ticketData = ref(null);
 const pagoDetalle = ref(null);
 
 const metodoPagos = ref([]);
+
+// ✅ NUEVO: Almacenar temporalmente info del último pago para el ticket
+const lastPaymentInfo = ref(null);
 
 const cargarMetodosPago = async () => {
   try {
@@ -323,14 +328,46 @@ const prepararTicket = (pedido, tipo, metodo = null, extras = {}) => {
   };
 };
 
+// ✅ NUEVO: Capturar info del pago ANTES de enviarlo al backend
+const onPagoPorProcesar = (paymentInfo) => {
+  console.log('🚀 Pago por procesar (PRE-envío):', paymentInfo);
+  lastPaymentInfo.value = paymentInfo;
+  console.log('💾 lastPaymentInfo guardado (PRE-envío):', lastPaymentInfo.value);
+};
+
 const onPagoRegistrado = async (evento) => {
     const { data, metodo, montoRecibido, montoAplicado, cambio, esMultiple } = evento;
     const { total_pagado, pendiente } = data;
 
+    // 🔍 DEBUG: Logging para diagnosticar problemas
+    console.log('📝 onPagoRegistrado llamado:', {
+        total_pagado,
+        pendiente,
+        'pendiente < 1': pendiente < 1,
+        metodo,
+        montoRecibido,
+        montoAplicado,
+        cambio,
+        esMultiple,
+        data
+    });
+
+    // ✅ NUEVO: Guardar info del pago para usarla en el listener de Socket.IO
+    lastPaymentInfo.value = {
+        metodo,
+        montoRecibido,
+        montoAplicado,
+        cambio,
+        esMultiple,
+        pedidoId: pedidoSeleccionado.value.id
+    };
+    
+    console.log('💾 lastPaymentInfo guardado:', lastPaymentInfo.value);
+
     await actualizarPedidos();
 
-    // Si se completó, imprimir ticket
-    if (pendiente <= 0) {
+    // ✅ CAMBIO: usar pendiente < 1 en vez de <= 0 para manejar redondeos
+    if (pendiente < 1) {
         const fullOrderRes = await api.getPedido(pedidoSeleccionado.value.id);
         const fullOrder = fullOrderRes.data;
 
@@ -510,7 +547,84 @@ const cerrarDetallePago = () => {
 
 onMounted(() => {
   actualizarPedidos();
-  cargarMetodosPago(); 
+  cargarMetodosPago();
+  
+  // ✅ NUEVO: Conectar Socket.IO para actualizaciones en tiempo real
+  if (!socket.connected) socket.connect();
+  
+  socket.on('pedido_actualizado', (data) => {
+    console.log('📝 Pedido actualizado en caja:', data);
+    actualizarPedidos();
+  });
+  
+  socket.on('pedido_pagado', async (data) => {
+    console.log('💰 Pago registrado:', data);
+    console.log('🔍 lastPaymentInfo actual:', lastPaymentInfo.value);
+    
+    // Si el pedido se completó (pendiente < 1), preparar para imprimir
+    if (data.pendiente < 1 && data.pedido_id === pedidoSeleccionado.value?.id) {
+      try {
+        // Obtener pedido completo para el ticket
+        const fullOrderRes = await api.getPedido(data.pedido_id);
+        const fullOrder = fullOrderRes.data;
+
+        // ✅ USAR la info guardada del pago si está disponible
+        const paymentInfo = lastPaymentInfo.value?.pedidoId === data.pedido_id 
+          ? lastPaymentInfo.value 
+          : null;
+
+        console.log('🎫 Payment info para ticket:', paymentInfo);
+        console.log('🔄 Comparación pedidoId:', {
+          'lastPaymentInfo.pedidoId': lastPaymentInfo.value?.pedidoId,
+          'data.pedido_id': data.pedido_id,
+          'coinciden': lastPaymentInfo.value?.pedidoId === data.pedido_id
+        });
+
+        // Determinar método de pago para el ticket
+        const ultimoPago = data.pagos_detalles?.[data.pagos_detalles.length - 1];
+        const metodoPago = paymentInfo?.esMultiple 
+          ? 'MULTIPLE' 
+          : (paymentInfo?.metodo || ultimoPago?.metodo || 'efectivo');
+        
+        const ticketPaymentData = { 
+          montoRecibido: paymentInfo?.montoRecibido || data.monto, 
+          montoAplicado: paymentInfo?.montoAplicado || data.monto, 
+          cambio: paymentInfo?.cambio || 0
+        };
+        
+        console.log('🎟️ Datos para ticket:', ticketPaymentData);
+        
+        // Preparar ticket con la info correcta del monto recibido y cambio
+        prepararTicket(
+          fullOrder,
+          'pago',
+          metodoPago,
+          ticketPaymentData
+        );
+
+        alert(t('cashier.alert_payment_registered') +
+          (data.pagos_multiples ? `\n¡Pago Múltiple completado!` : `\nPagado ahora: $${Math.round(data.monto).toLocaleString()}`) +
+          `\nTotal pagado: $${Math.round(data.total_pagado).toLocaleString()}\n` +
+          `¡Pago completado! Imprimiendo ticket...`
+        );
+
+        imprimirContenido(ticketData.value);
+        pedidoSeleccionado.value = null; // Cerrar form
+        
+        // Limpiar info temporal del pago
+        lastPaymentInfo.value = null;
+      } catch (error) {
+        console.error('Error al preparar ticket:', error);
+      }
+    }
+    
+    actualizarPedidos();
+  });
+});
+
+onUnmounted(() => {
+  socket.off('pedido_actualizado');
+  socket.off('pedido_pagado');
 });
 </script>
 <style src="../assets/styles/CajaPanel.css" scoped></style>
