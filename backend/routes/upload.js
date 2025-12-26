@@ -19,7 +19,7 @@ const storage = multer.memoryStorage();
 const upload = multer({
     storage,
     limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB máximo
+        fileSize: 10 * 1024 * 1024 // 10MB máximo (Aumentado para fondos HD)
     },
     fileFilter: (req, file, cb) => {
         // Solo aceptar imágenes

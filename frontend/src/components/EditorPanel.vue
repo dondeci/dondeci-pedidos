@@ -266,7 +266,10 @@
 
           <div class="form-group" style="margin-top: 16px;">
              <label>{{ $t('editor.config.cover_img') }}</label>
-             <input type="file" @change="e => procesarImagen(e, 'imagenPortada')" accept="image/*" />
+             <div class="input-group-row">
+                <input v-model="config.imagenPortada" type="text" placeholder="https://..." class="clean-input" style="flex: 1;" />
+                <input type="file" @change="e => subirImagenConfig(e, 'imagenPortada')" accept="image/*" style="width: auto;" />
+             </div>
              <div v-if="config.imagenPortada" class="img-preview">
                 <img :src="config.imagenPortada" />
                 <button @click="config.imagenPortada = ''" class="btn-text-danger">{{ $t('common.delete') }}</button>
@@ -275,7 +278,10 @@
 
           <div class="form-group">
              <label>{{ $t('editor.config.menu_bg') }}</label>
-             <input type="file" @change="e => procesarImagen(e, 'imagenFondoMenu')" accept="image/*" />
+             <div class="input-group-row">
+                <input v-model="config.imagenFondoMenu" type="text" placeholder="https://..." class="clean-input" style="flex: 1;" />
+                <input type="file" @change="e => subirImagenConfig(e, 'imagenFondoMenu')" accept="image/*" style="width: auto;" />
+             </div>
              <div v-if="config.imagenFondoMenu" class="img-preview">
                 <img :src="config.imagenFondoMenu" />
                 <button @click="config.imagenFondoMenu = ''" class="btn-text-danger">{{ $t('common.delete') }}</button>
@@ -611,9 +617,9 @@ const subirImagenItem = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
   
-  // Validar tamaño (5MB máximo)
-  if (file.size > 5 * 1024 * 1024) {
-    alert('La imagen es muy grande. Máximo 5MB.');
+  // Validar tamaño (10MB máximo para fondos grandes)
+  if (file.size > 10 * 1024 * 1024) {
+    alert('La imagen es muy grande. Máximo 10MB.');
     return;
   }
   
@@ -632,6 +638,31 @@ const subirImagenItem = async (event) => {
     alert('❌ Error al subir la imagen');
   } finally {
     subiendoImagen.value = false;
+  }
+};
+
+// ✅ NUEVO: Subir imagen de configuración (Portada/Fondo)
+const subirImagenConfig = async (event, campo) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // 10MB limit
+  if (file.size > 10 * 1024 * 1024) {
+    alert('La imagen es muy grande. Máximo 10MB.');
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const res = await api.uploadMenuImage(formData);
+    config.value[campo] = res.data.url;
+
+    alert('✅ Imagen subida correctamente. Recuerda Guardar Cambios.');
+  } catch (err) {
+    console.error('Error subiendo imagen:', err);
+    alert('❌ Error al subir la imagen');
   }
 };
 
@@ -772,22 +803,7 @@ const eliminarItem = async (id) => {
 // --- MÉTODOS CONFIGURACIÓN ---
 const guardando = ref(false);
 
-const procesarImagen = (event, key) => {
-  const file = event.target.files[0];
-  if (!file) return;
-  
-  // Validar tamaño (ej. max 5MB para evitar problemas de red aunque el server acepte 50)
-  if (file.size > 5 * 1024 * 1024) {
-    alert('La imagen es muy grande. Intenta con una menor a 5MB.');
-    return;
-  }
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    config.value[key] = e.target.result;
-  };
-  reader.readAsDataURL(file);
-};
 
 const guardarConfig = async () => {
   guardando.value = true;
@@ -1067,5 +1083,11 @@ onMounted(() => {
 
 .clean-input.center {
   text-align: center;
+}
+
+.input-group-row {
+   display: flex;
+   gap: 8px;
+   align-items: center;
 }
 </style>
