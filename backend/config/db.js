@@ -15,7 +15,13 @@ types.setTypeParser(1114, str => new Date(str + 'Z'));
 // Configuración de PostgreSQL
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    ssl: { rejectUnauthorized: false } // Siempre permitir SSL en Neon/Cloud
+});
+
+// ✅ FIX: Ejecutar SET search_path al conectar cliente (compatible con Neon Pooler)
+pool.on('connect', (client) => {
+    client.query('SET search_path TO public')
+        .catch(err => console.error('Error setting search_path', err.message));
 });
 
 // Funciones helper para promisificar

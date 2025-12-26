@@ -84,10 +84,28 @@ export const usePedidoStore = defineStore('pedido', () => {
     };
 
     const actualizarEstadoPedido = async (id, estado) => {
+        // Optimistic Update: Actualizar localmente primero para velocidad
+        const pedidoIndex = pedidos.value.findIndex(p => p.id === id);
+        const pedidoOriginal = pedidoIndex !== -1 ? { ...pedidos.value[pedidoIndex] } : null;
+
+        if (pedidoIndex !== -1) {
+            if (estado === 'cancelado') {
+                // Si es cancelado, quitarlo de la lista visualmente
+                // Ojo: Si socket reenvía, podría volver, pero el filtro de MeseroPanel lo ocultará
+                pedidos.value[pedidoIndex].estado = estado;
+            } else {
+                pedidos.value[pedidoIndex].estado = estado;
+            }
+        }
+
         try {
             await api.actualizarEstadoPedido(id, estado);
-            await cargarPedidosActivos();
+            // Ya no recargamos todo 'cargarPedidosActivos()'. El socket se encargará si hay cambios externos.
         } catch (err) {
+            // Rollback en caso de error
+            if (pedidoOriginal && pedidoIndex !== -1) {
+                pedidos.value[pedidoIndex] = pedidoOriginal;
+            }
             error.value = 'Error actualizando pedido';
             throw err;
         }

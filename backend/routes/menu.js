@@ -18,7 +18,8 @@ router.get('/', async (req, res) => {
         const items = await allAsync(`
             SELECT id, nombre, categoria, precio, tiempo_preparacion_min, 
                    disponible, usa_inventario, stock_actual, stock_minimo,
-                   estado_inventario, es_directo, imagen_url
+                   estado_inventario, es_directo, 
+                   COALESCE(NULLIF(image_url, ''), imagen_url) as image_url
             FROM menu_items 
             WHERE disponible = true
             ORDER BY categoria, nombre
@@ -48,8 +49,8 @@ router.post('/', async (req, res) => {
                 id, nombre, categoria, precio, tiempo_estimado, disponible, descripcion,
                 usa_inventario, stock_actual, stock_minimo, estado_inventario, es_directo, image_url
             )
-            VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-        `;
+        VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            `;
 
         await runAsync(query, [
             id,
@@ -94,11 +95,11 @@ router.put('/:id', async (req, res) => {
 
         const query = `
             UPDATE menu_items 
-            SET nombre = $1, categoria = $2, precio = $3, tiempo_estimado = $4, 
-                disponible = $5, descripcion = $6, usa_inventario = $7, 
-                stock_actual = $8, stock_minimo = $9, estado_inventario = $10, es_directo = $11, image_url = $12
+            SET nombre = $1, categoria = $2, precio = $3, tiempo_estimado = $4,
+            disponible = $5, descripcion = $6, usa_inventario = $7,
+            stock_actual = $8, stock_minimo = $9, estado_inventario = $10, es_directo = $11, image_url = $12
             WHERE id = $13
-        `;
+            `;
 
         await runAsync(query, [
             nombre,
@@ -142,7 +143,7 @@ router.put('/:id/inventario', async (req, res) => {
             UPDATE menu_items 
             SET usa_inventario = $1, stock_actual = $2, stock_minimo = $3, estado_inventario = $4
             WHERE id = $5
-        `, [usa_inventario, stock_actual, stock_minimo, estado_inventario, req.params.id]);
+            `, [usa_inventario, stock_actual, stock_minimo, estado_inventario, req.params.id]);
 
         res.json({ message: '✓ Inventario actualizado' });
     } catch (error) {
@@ -191,7 +192,7 @@ router.post('/:id/ajustar-stock', async (req, res) => {
             UPDATE menu_items 
             SET stock_actual = $1, estado_inventario = $2
             WHERE id = $3
-        `, [nuevoStock, nuevoEstado, req.params.id]);
+            `, [nuevoStock, nuevoEstado, req.params.id]);
 
         res.json({
             message: '✓ Stock ajustado',

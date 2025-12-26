@@ -813,7 +813,7 @@ const cancelarPedido = async (pedidoId) => {
 
   try {
     await pedidoStore.actualizarEstadoPedido(pedidoId, 'cancelado');
-    await pedidoStore.cargarPedidosActivos();
+    // await pedidoStore.cargarPedidosActivos(); // ⚡ Optimizado: El store actualiza localmente
     alert(t('waiter.alert_cancelled'));
   } catch (err) {
     console.error(err);
