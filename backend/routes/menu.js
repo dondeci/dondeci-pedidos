@@ -1,15 +1,32 @@
 import express from 'express';
 import { getAsync, allAsync, runAsync } from '../config/db.js';
 import { v4 as uuidv4 } from 'uuid';
+import { getFromCache, setCache, clearCache } from '../utils/cache.js'; // ✅ NUEVO
 
 const router = express.Router();
 
 // GET /api/menu - Obtener todos los items del menú
 router.get('/', async (req, res) => {
     try {
+        // ✅ NUEVO: Check cache first (5 min TTL)
+        const cached = getFromCache('menu_items', 300000);
+        if (cached) {
+            return res.json(cached);
+        }
+
+        // ✅ OPTIMIZED: Select only necessary columns (no descripcion, created_at, updated_at)
         const items = await allAsync(`
-            SELECT * FROM menu_items ORDER BY categoria, nombre
+            SELECT id, nombre, categoria, precio, tiempo_preparacion_min, 
+                   disponible, usa_inventario, stock_actual, stock_minimo,
+                   estado_inventario, es_directo, imagen_url
+            FROM menu_items 
+            WHERE disponible = true
+            ORDER BY categoria, nombre
         `);
+
+        // ✅ NUEVO: Cache the result
+        setCache('menu_items', items);
+
         res.json(items);
     } catch (error) {
         res.status(500).json({ error: error.message });

@@ -213,8 +213,8 @@ export function useNotificaciones(rol) {
             });
         }
 
-        // Intervalo de respaldo cada 30s
-        intervalo = setInterval(verificarNotificaciones, 30000);
+        // ✅ OPTIMIZED: Intervalo de respaldo cada 60s (antes 30s) - reduce bandwidth 50%
+        intervalo = setInterval(verificarNotificaciones, 60000);
 
         console.log(`✅ Notificaciones activadas para: ${rol}`);
     });

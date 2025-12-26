@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import api from '../api';
 import socket from '../socket'; // Importar socket
+import { cacheGet, cacheSet } from '../utils/cache'; // ✅ NUEVO
 
 export const usePedidoStore = defineStore('pedido', () => {
     const pedidos = ref([]);
@@ -11,10 +12,19 @@ export const usePedidoStore = defineStore('pedido', () => {
     const error = ref(null);
 
     const cargarMenu = async () => {
+        // ✅ NUEVO: Check cache first (5 min TTL)
+        const cached = cacheGet('menu', 300000);
+        if (cached) {
+            menu.value = cached;
+            return;
+        }
+
         loading.value = true;
         try {
             const response = await api.getMenu();
             menu.value = response.data;
+            // ✅ NUEVO: Cache the result
+            cacheSet('menu', response.data);
         } catch (err) {
             error.value = 'Error cargando menú';
             console.error(err);
@@ -24,10 +34,19 @@ export const usePedidoStore = defineStore('pedido', () => {
     };
 
     const cargarMesas = async () => {
+        // ✅ NUEVO: Check cache first (10 min TTL)
+        const cached = cacheGet('mesas', 600000);
+        if (cached) {
+            mesas.value = cached;
+            return;
+        }
+
         loading.value = true;
         try {
             const response = await api.getMesas();
             mesas.value = response.data;
+            // ✅ NUEVO: Cache the result
+            cacheSet('mesas', response.data);
         } catch (err) {
             error.value = 'Error cargando mesas';
             console.error(err);

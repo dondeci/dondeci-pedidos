@@ -7,6 +7,8 @@ import { Server } from 'socket.io';
 import pool, { runAsync, getAsync, allAsync } from './config/db.js';
 import bcrypt from 'bcrypt'; // ✅ NUEVO
 import { v4 as uuidv4 } from 'uuid'; // ✅ NUEVO
+import compression from 'compression'; // ✅ NUEVO: Compression
+import { getFromCache, setCache, clearCache } from './utils/cache.js'; // ✅ NUEVO: Cache
 
 // Importar rutas
 import authRoutes from './routes/auth.js';
@@ -49,6 +51,19 @@ app.set('io', io);
 
 // Middlewares
 app.use(cors());
+
+// ✅ NUEVO: Enable gzip compression (40-60% bandwidth reduction)
+app.use(compression({
+    filter: (req, res) => {
+        if (req.headers['x-no-compression']) {
+            return false;
+        }
+        return compression.filter(req, res);
+    },
+    threshold: 1024, // Only compress responses > 1KB
+    level: 6 // Balance between speed and compression ratio
+}));
+
 // ✅ AUMENTAR LÍMITE para imágenes base64 grandes en configuración (50MB)
 app.use(express.json({ limit: '50mb' }));
 
