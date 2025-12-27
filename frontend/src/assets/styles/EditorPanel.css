@@ -57,7 +57,7 @@
     padding: 16px;
     margin-bottom: 24px;
     position: sticky;
-    top: 80px;
+    top: 70px;
     /* ✅ Ajustado para no tapar el header principal */
     z-index: 100;
 }
