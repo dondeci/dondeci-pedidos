@@ -336,6 +336,7 @@
         "mesero": "Mesero",
         "cocinero": "Cocinero",
         "facturero": "Cajero",
+        "cajero": "Cajero",
         "admin": "Administrador"
     },
     "ticket": {

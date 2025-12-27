@@ -41,7 +41,7 @@
         <div class="main-content">
           <MeseroPanel v-if="usuarioStore.usuario.rol === 'mesero'" />
           <CocineroPanel v-if="usuarioStore.usuario.rol === 'cocinero'" />
-          <CajaPanel v-if="usuarioStore.usuario.rol === 'facturero'" />
+          <CajaPanel v-if="usuarioStore.usuario.rol === 'facturero' || usuarioStore.usuario.rol === 'cajero'" />
           <AdminPanel v-if="usuarioStore.usuario.rol === 'admin'" />
         </div>
       </template>
@@ -224,7 +224,8 @@ const obtenerNombreRol = (rol) => {
   background: rgba(249, 115, 22, 0.3);
 }
 
-.rol-facturero {
+.rol-facturero,
+.rol-cajero {
   background: rgba(16, 185, 129, 0.3);
 }
 
