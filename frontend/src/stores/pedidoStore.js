@@ -162,6 +162,12 @@ export const usePedidoStore = defineStore('pedido', () => {
                 pedido.estado = estado;
             }
         });
+
+        // ✅ NUEVO: Recargar menú cuando hay cambios de inventario
+        socket.on('inventory_update', () => {
+            console.log('📦 Inventario cambiado - Recargando menú...');
+            cargarMenu();
+        });
     };
 
     const pedidosPorEstado = computed(() => {

@@ -78,6 +78,10 @@ router.put('/:id/stock', async (req, res) => {
         }
 
         await runAsync(sql, params);
+
+        // ✅ NUEVO: Notificar a clientes (Meseros) para recargar menú
+        req.app.get('io').emit('inventory_update');
+
         res.json({ message: 'Stock actualizado' });
     } catch (error) {
         res.status(500).json({ error: error.message });

@@ -181,6 +181,9 @@ router.post('/', async (req, res) => {
 
         req.app.get('io').emit('nuevo_pedido', nuevoPedido);
 
+        // ✅ NUEVO: Notificar cambio de inventario para actualizar stock en tiempo real
+        req.app.get('io').emit('inventory_update');
+
         // ✅ NUEVO: Send push notification to kitchen
         try {
             const cookableItems = items.filter(item => !item.es_directo);
@@ -395,6 +398,8 @@ router.put('/:id/estado', async (req, res) => {
                     `, [nuevoReservado, nuevoEstado, item.menu_item_id]);
                 }
             }
+            // ✅ NUEVO: Notificar cambio de inventario tras cancelación
+            req.app.get('io').emit('inventory_update');
         }
 
         req.app.get('io').emit('pedido_actualizado', { id: req.params.id, estado });
@@ -1019,9 +1024,13 @@ router.delete('/:id/items/:itemId', async (req, res) => {
             estado: nuevoEstadoPedido || 'en_cocina' // Usar el nuevo estado si existe
         });
 
+        // ✅ NUEVO: Actualizar inventario al eliminar item
+        req.app.get('io').emit('inventory_update');
+
         res.json({
             message: `✓ Item "${item.nombre}" eliminado del pedido`,
-            nuevoTotal: nuevoTotal
+            nuevoTotal: nuevoTotal,
+            nuevoEstado: nuevoEstadoPedido
         });
 
     } catch (error) {
