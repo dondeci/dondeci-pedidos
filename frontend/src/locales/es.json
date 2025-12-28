@@ -270,7 +270,8 @@
         "alert_error_payment": "❌ Error al registrar pago",
         "confirm_payment_prompt": "¿Confirmar el pago? Esta acción no se puede deshacer.",
         "print_bill": "Imprimir Cuenta",
-        "view_bill_online": "Ver Cuenta"
+        "view_bill_online": "Ver Cuenta",
+        "revert_order": "Devolver a Mesa"
     },
     "admin": {
         "title": "Panel Administrativo",

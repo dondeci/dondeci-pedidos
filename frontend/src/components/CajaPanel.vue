@@ -41,14 +41,14 @@
                   class="btn btn-sm btn-info"
                   :title="$t('cashier.view_bill_online')"
                 >
-                  👁️
+                  👁️ {{ $t('cashier.view_bill_online') }}
                 </button>
                 <button 
                   @click="revertirPedido(pedido)" 
                   class="btn btn-sm btn-warning"
-                  title="Devolver a Mesa (Reabrir)"
+                  :title="$t('cashier.revert_order')"
                 >
-                  ↩️
+                  ↩️ {{ $t('cashier.revert_order') }}
                 </button>
                 <button 
                   @click="pedirCuenta(pedido)" 
@@ -563,7 +563,7 @@ const revertirPedido = async (pedido) => {
   
   try {
     loading.value = true;
-    await api.updatePedidoStatus(pedido.id, 'servido');
+    await api.actualizarEstadoPedido(pedido.id, 'servido');
     alert('Pedido devuelto a estado servido exitosamente.');
     await actualizarPedidos();
   } catch (error) {

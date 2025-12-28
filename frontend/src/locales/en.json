@@ -270,7 +270,8 @@
         "alert_error_payment": "❌ Error registering payment",
         "confirm_payment_prompt": "Confirm payment? This action cannot be undone.",
         "print_bill": "Print Bill",
-        "view_bill_online": "View Bill"
+        "view_bill_online": "View Bill",
+        "revert_order": "Return to Table"
     },
     "admin": {
         "title": "Admin Panel",

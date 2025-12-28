@@ -155,6 +155,7 @@
           ></textarea>
 
           <button
+            ref="btnConfirmar"
             @click="enviarPedido"
             class="btn btn-primary btn-submit"
             :disabled="!mesaSeleccionada || pedidoEnProgreso.length === 0 || enviandoPedido"
@@ -162,6 +163,16 @@
             {{ enviandoPedido ? $t('common.saving') : $t('waiter.send_to_kitchen') }}
           </button>
         </div>
+
+        <!-- ✅ NUEVO: Floating Action Button (FAB) para ir a confirmar -->
+        <button 
+          v-if="pedidoEnProgreso.length > 0" 
+          @click="scrollToConfirm" 
+          class="fab-confirm"
+          title="Ir a confirmar pedido"
+        >
+          ✅
+        </button>
 
         <!-- Items Listos para Servir (Individual) -->
         <div class="section" v-if="misItemsListos.length > 0">
@@ -464,7 +475,9 @@ const qrComponent = ref(null);
 const mostrarQR = ref(false);
 const urlParaQR = ref('');
 const now = ref(Date.now()); 
+ 
 const router = useRouter(); 
+const btnConfirmar = ref(null); // ✅ NUEVO: Ref for confirm button 
 
 // Variables para edición de pedidos
 const mostrarEditorPedido = ref(false);
@@ -817,6 +830,13 @@ const agregarItemAlPedido = (item) => {
       menu_item_id: item.id,
       precio_unitario: item.precio
     });
+  }
+};
+
+// ✅ NUEVO: Scroll hacia el botón confirmar
+const scrollToConfirm = () => {
+  if (btnConfirmar.value) {
+    btnConfirmar.value.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 };
 
@@ -1239,6 +1259,44 @@ onUnmounted(() => {
 <style src="../assets/styles/MeseroEdicion.css" scoped></style>
 
 <style scoped>
+/* Estilos para el botón flotante */
+.fab-confirm {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  color: white;
+  border: none;
+  font-size: 32px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  z-index: 999; /* Por encima de todo */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s, background-color 0.2s;
+  animation: bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.fab-confirm:hover {
+  background-color: #16a34a;
+  transform: scale(1.1);
+}
+
+.fab-confirm:active {
+  transform: scale(0.9);
+}
+
+@keyframes bounce-in {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* Resto de estilos */
 /* Fix for QR Modal Close Button */
 .qr-modal {
   position: relative !important; /* Ensure absolute positioning works for children */
