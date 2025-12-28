@@ -229,7 +229,9 @@
         "confirm_add_items": "Confirm adding these items to the order?",
         "view_bill": "View Bill",
         "back_to_panel": "Back to Panel",
-        "back_to_order_status": "Back to Status"
+        "back_to_order_status": "Back to Status",
+        "confirm_payment": "Confirm Payment",
+        "ready_to_pay_confirm": "Confirm this order is ready to pay?"
     },
     "cashier": {
         "title": "💰 Cashier Panel",

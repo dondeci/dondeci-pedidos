@@ -34,6 +34,9 @@
               <div class="items-count">
                 {{ pedido.items_count }} items
               </div>
+              <div v-if="pedido.notas" style="background-color: #fef9c3; color: #854d0e; padding: 4px 8px; border-radius: 4px; font-size: 0.9em; margin-top: 4px; font-style: italic; border: 1px solid #fde047;">
+                 📝 {{ pedido.notas }}
+              </div>
               
               <div class="pedido-botones">
                 <button 

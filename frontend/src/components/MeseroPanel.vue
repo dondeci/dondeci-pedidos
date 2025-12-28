@@ -441,6 +441,30 @@
       </div>
     </div>
   </div>
+  <!-- Modal de confirmación de pago con nota -->
+  <div v-if="mostrarConfirmacionPago" class="qr-modal-overlay" @click.self="mostrarConfirmacionPago = false">
+    <div class="modal-content-pago" style="background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 400px; text-align: center;">
+      <h3>{{ $t('waiter.confirm_payment') }}</h3>
+      <p style="margin-bottom: 16px;">{{ $t('waiter.ready_to_pay_confirm') }}</p>
+      
+      <textarea
+        v-model="notaPago"
+        placeholder="Nota para cajero (opcional) ej: 'Pagaron 50k efectivo'"
+        class="form-control"
+        rows="3"
+        style="width: 100%; margin-bottom: 16px; padding: 8px; border: 1px solid #ddd; border-radius: 8px;"
+      ></textarea>
+
+      <div class="modal-actions" style="display: flex; gap: 12px; justify-content: center;">
+        <button @click="mostrarConfirmacionPago = false" class="btn btn-secondary">
+          {{ $t('common.cancel') }}
+        </button>
+        <button @click="confirmarListoPagar" class="btn btn-primary">
+          {{ $t('common.yes') }}
+        </button>
+      </div>
+    </div>
+  </div>
       </template>
     </div>
   </div>
@@ -478,6 +502,11 @@ const now = ref(Date.now());
  
 const router = useRouter(); 
 const btnConfirmar = ref(null); // ✅ NUEVO: Ref for confirm button 
+
+// ✅ NUEVO: Variables para confirmación de pago
+const mostrarConfirmacionPago = ref(false);
+const notaPago = ref('');
+const pedidoParaPagar = ref(null); 
 
 // Variables para edición de pedidos
 const mostrarEditorPedido = ref(false);
@@ -950,13 +979,38 @@ const calcularTiempoDesde = (minutos) => {
 
 
 
-const marcarListoPagar = async (pedidoId) => {
-  try {
-    await pedidoStore.actualizarEstadoPedido(pedidoId, 'listo_pagar');
-    alert(t('waiter.alert_marked_pay_ready'));
-  } catch (err) {
-    alert(t('common.error'));
-  }
+// ✅ NUEVO: Función para abrir modal de confirmación de pago
+const marcarListoPagar = (pedidoId) => {
+  pedidoParaPagar.value = pedidoId;
+  notaPago.value = ''; // Reset nota
+  mostrarConfirmacionPago.value = true;
+};
+
+// ✅ NUEVO: Confirmar listo para pagar con nota
+const confirmarListoPagar = async () => {
+    if (!pedidoParaPagar.value) return;
+
+    try {
+        loading.value = true;
+        // Ahora enviamos 3 argumentos: id, estado, notas
+        await api.actualizarEstadoPedido(pedidoParaPagar.value, 'listo_pagar', notaPago.value);
+        
+        // CERRAR MODAL INMEDIATAMENTE
+        mostrarConfirmacionPago.value = false;
+        
+        notificaciones.agregar('success', t('waiter.alert_marked_pay_ready'));
+        
+        pedidoParaPagar.value = null;
+        notaPago.value = '';
+        
+        // Cargar datos en segundo plano
+        cargarDatos();
+    } catch (error) {
+        console.error('Error al marcar listo para pagar:', error);
+        notificaciones.agregar('error', t('common.error'));
+    } finally {
+        loading.value = false;
+    }
 };
 
 // ✅ NUEVO: Ver cuenta online

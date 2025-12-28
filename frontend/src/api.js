@@ -107,8 +107,8 @@ export default {
     return api.get(`/pedidos/${id}`);
   },
 
-  actualizarEstadoPedido(id, estado) {
-    return api.put(`/pedidos/${id}/estado`, { estado });
+  actualizarEstadoPedido(id, estado, notas = null) {
+    return api.put(`/pedidos/${id}/estado`, { estado, notas });
   },
 
   deletePedido(id) {

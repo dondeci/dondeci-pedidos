@@ -335,7 +335,7 @@ router.get('/:id', async (req, res) => {
 // PUT /api/pedidos/:id/estado - Actualizar estado del pedido
 router.put('/:id/estado', async (req, res) => {
     try {
-        const { estado } = req.body;
+        const { estado, notas } = req.body;
 
         const estadosValidos = ['nuevo', 'en_cocina', 'listo', 'servido', 'listo_pagar', 'en_caja', 'pagado', 'cancelado'];
         if (!estadosValidos.includes(estado)) {
@@ -344,6 +344,7 @@ router.put('/:id/estado', async (req, res) => {
 
         let updateQuery = 'UPDATE pedidos SET estado = $1';
         let params = [estado];
+        let paramIndex = 2; // Start params index for ID
 
         if (estado === 'en_cocina') {
             updateQuery += ', started_at = CURRENT_TIMESTAMP';
@@ -353,7 +354,16 @@ router.put('/:id/estado', async (req, res) => {
             updateQuery += ', completed_at = CURRENT_TIMESTAMP';
         }
 
-        updateQuery += ' WHERE id = $2';
+        // ✅ NUEVO: Actualizar notas si se envían (concatenar si ya existe?)
+        // Por simplicidad, si se envía nota, actualizamos el campo. 
+        // Idealmente podríamos hacer: notas = COALESCE(notas || ' | ', '') || $N
+        if (notas) {
+            updateQuery += `, notas = CASE WHEN notas IS NULL OR notas = '' THEN $${paramIndex} ELSE notas || ' | ' || $${paramIndex} END`;
+            params.push(notas);
+            paramIndex++;
+        }
+
+        updateQuery += ` WHERE id = $${paramIndex}`;
         params.push(req.params.id);
 
         await runAsync(updateQuery, params);

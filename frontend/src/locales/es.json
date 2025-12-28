@@ -229,7 +229,9 @@
         "confirm_add_items": "¿Confirmar agregar estos items al pedido?",
         "view_bill": "Ver Cuenta",
         "back_to_panel": "Volver al Panel",
-        "back_to_order_status": "Volver al Estado"
+        "back_to_order_status": "Volver al Estado",
+        "confirm_payment": "Confirmar Pago",
+        "ready_to_pay_confirm": "¿Confirmar que este pedido está listo para pagar?"
     },
     "cashier": {
         "title": "💰 Panel de Caja",
