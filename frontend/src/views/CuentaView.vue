@@ -188,7 +188,7 @@ const cargarPedido = async () => {
     if (pedido.value.estado === 'pagado') {
       // Get table number from the order to redirect to status page
       const tableNumber = pedido.value.mesa_numero;
-      router.push(`/customer/${tableNumber}/status`);
+      router.push(`/mesa/${tableNumber}/status`);
     }
   } catch (err) {
     console.error('Error loading bill:', err);

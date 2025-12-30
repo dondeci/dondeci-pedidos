@@ -99,10 +99,10 @@
               v-for="item in itemsPorCategoria"
               :key="item.id"
               :class="['item-card', { 
-                'item-disabled': item.estado_inventario === 'no_disponible',
+                'item-disabled': !canAddMain(item),
                 'item-low-stock': item.estado_inventario === 'poco_stock'
               }]"
-              @click="agregarItemAlPedido(item)"
+              @click="canAddMain(item) ? agregarItemAlPedido(item) : null"
             >
               <div class="item-image-wrapper">
                  <img v-if="item.image_url" :src="item.image_url" :alt="item.nombre" class="item-img" />
@@ -110,14 +110,14 @@
                     <UtensilsCrossed :size="24" />
                  </div>
                  
-                 <div v-if="item.estado_inventario === 'no_disponible'" class="stock-badge out">
-                    {{ $t('editor.stock.out') }}
+                 <div v-if="item.estado_inventario === 'no_disponible' || getRemainingStockMain(item) <= 0" class="stock-badge out">
+                    {{ $t('waiter.sold_out') }}
                  </div>
-                 <div v-else-if="item.estado_inventario === 'poco_stock'" class="stock-badge low">
-                    {{ $t('editor.stock.low') }}
+                 <div v-else-if="item.estado_inventario === 'poco_stock' && !item.usa_inventario" class="stock-badge low">
+                    {{ $t('waiter.low_stock') }}
                  </div>
-                 <div v-else-if="item.usa_inventario && item.stock_actual !== null" class="stock-badge count">
-                    {{ item.stock_actual }}
+                 <div v-else-if="item.usa_inventario && !item.es_directo" class="stock-badge count">
+                    {{ getRemainingStockMain(item) }} {{ $t('waiter.available') }}
                  </div>
               </div>
               
@@ -440,16 +440,19 @@
                 v-for="menuItem in itemsPorCategoriaEdicion"
                 :key="menuItem.id"
                 :class="['item-card-mini', { 
-                  'disabled': menuItem.estado_inventario === 'no_disponible'
+                  'disabled': !canAddEdit(menuItem)
                 }]"
-                @click="agregarItemAEdicion(menuItem)"
+                @click="canAddEdit(menuItem) ? agregarItemAEdicion(menuItem) : null"
               >
                  <div class="card-mini-content">
                     <span class="mini-name">{{ menuItem.nombre }}</span>
                     <span class="mini-price">${{ menuItem.precio }}</span>
                  </div>
-                 <div v-if="menuItem.usa_inventario && menuItem.stock_actual !== null" class="mini-stock">
-                    {{ menuItem.stock_actual }}
+                 <div v-if="menuItem.usa_inventario && !menuItem.es_directo" class="mini-stock">
+                    {{ getRemainingStockEdit(menuItem) }}
+                 </div>
+                 <div v-if="getRemainingStockEdit(menuItem) <= 0" class="mini-stock out">
+                    0
                  </div>
               </div>
             </div>
@@ -556,7 +559,7 @@ import {
     ClipboardList, Printer, QrCode, RefreshCw, Bell, AlertTriangle, CheckCircle, 
     LayoutGrid, Lock, Utensils, Search, UtensilsCrossed, Clock, ShoppingCart, 
     Scissors, Trash2, Send, Loader2, Check, BellRing, CheckCircle2, CheckCheck, 
-    Layers, Eye, DollarSign, Activity, Coffee, Edit3, X, FileText, ArrowUp 
+    Layers, Eye, DollarSign, Activity, Coffee, Edit3, X, FileText, ArrowUp, ArrowDown 
 } from 'lucide-vue-next';
 
 const { t } = useI18n();
@@ -616,6 +619,31 @@ const itemsPorCategoriaEdicion = computed(() => {
   
   return items;
 });
+
+// ✅ STOCK HELPERS
+const getStockTotal = (item) => {
+  if (!item.usa_inventario || item.es_directo) return 9999;
+  return (item.stock_actual || 0) - (item.stock_reservado || 0);
+};
+
+const getRemainingStockMain = (item) => {
+  const total = getStockTotal(item);
+  const inCart = pedidoEnProgreso.value
+    .filter(p => p.id === item.id)
+    .reduce((sum, p) => sum + p.cantidad, 0);
+  return Math.max(0, total - inCart);
+};
+
+const getRemainingStockEdit = (item) => {
+  const total = getStockTotal(item);
+  const inPendings = itemsParaAgregar.value
+    .filter(p => p.id === item.id)
+    .reduce((sum, p) => sum + p.cantidad, 0);
+  return Math.max(0, total - inPendings);
+};
+
+const canAddMain = (item) => item.estado_inventario !== 'no_disponible' && getRemainingStockMain(item) > 0;
+const canAddEdit = (item) => item.estado_inventario !== 'no_disponible' && getRemainingStockEdit(item) > 0;
 
 const isTableBlocked = (mesa) => {
   if (!mesa.is_blockable) return false;
@@ -842,7 +870,7 @@ const misPedidosServidos = computed(() => {
 
 // WATCHERS & METHODS
 const agregarItemAlPedido = (item) => {
-  if (item.estado_inventario === 'no_disponible') return;
+  if (!canAddMain(item)) return; // ✅ Robust check
   
   const existe = pedidoEnProgreso.value.find(p => p.id === item.id && !p.notas); // Group only if no notes
   if (existe) {
@@ -904,6 +932,7 @@ const enviarPedido = async () => {
 
     const payload = {
       mesa_numero: mesaNum,
+      usuario_mesero_id: usuarioStore.usuario.id,
       items: JSON.parse(JSON.stringify(items)),
       notas: notasPedido.value
     };
@@ -977,7 +1006,7 @@ const cerrarEditorPedido = () => {
 };
 
 const agregarItemAEdicion = (menuItem) => {
-  if (menuItem.estado_inventario === 'no_disponible') return;
+  if (!canAddEdit(menuItem)) return; // ✅ Robust check
   
   const existe = itemsParaAgregar.value.find(i => i.id === menuItem.id && !i.notas);
   if (existe) {
@@ -1008,15 +1037,16 @@ const confirmarAgregarItems = async () => {
   agregandoItems.value = true;
   
   try {
-    const promises = itemsParaAgregar.value.map(item => {
-        return api.agregarItemsAPedido(pedidoEditando.value.id, {
-            menu_item_id: item.id,
-            cantidad: item.cantidad,
-            notas: item.notas
-        });
-    });
-    
-    await Promise.all(promises);
+    // Backend expects a single request with { items: [...] }
+    // and each item MUST have precio_unitario
+    const itemsPayload = itemsParaAgregar.value.map(item => ({
+        menu_item_id: item.id,
+        cantidad: item.cantidad,
+        precio_unitario: item.precio, // Essential for backend
+        notas: item.notas
+    }));
+
+    await api.agregarItemsAPedido(pedidoEditando.value.id, { items: itemsPayload });
     
     mostrarNotificacion(`items-agregados-${Date.now()}`, t('waiter.items_added'), 'success');
     cerrarEditorPedido();

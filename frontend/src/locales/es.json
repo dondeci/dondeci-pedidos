@@ -29,6 +29,7 @@
         "table": "Mesa",
         "people": "Personas",
         "uploading": "Subiendo...",
+        "upload": "Subir",
         "sending": "Enviando...",
         "download_qr": "Descargar QR",
         "unassigned": "Sin asignar",
@@ -46,14 +47,14 @@
         "tip": "Propina",
         "total_pay": "Total a Pagar",
         "request_btn": " Pedir la Cuenta",
-        "requested_btn": "✅ Cuenta Solicitada",
+        "requested_btn": "Cuenta Solicitada",
         "requested_msg": "Tu mesero ha sido notificado y se acercará pronto.",
         "footer": "Gracias por tu preferencia a",
         "loading": "Cargando cuenta...",
         "error_title": "No pudimos cargar la cuenta",
         "error_msg": "No pudimos cargar la cuenta. Verifica que el ID sea correcto.",
         "invalid_id": "ID de cuenta no válido",
-        "alert_requested": "✅ Tu mesero ha sido notificado y se acercará pronto para el pago."
+        "alert_requested": "Tu mesero ha sido notificado y se acercará pronto para el pago."
     },
     "status": {
         "nuevo": "Nuevo",
@@ -131,7 +132,8 @@
         },
         "menu": {
             "view_menu": "Ver Menú Digital / PDF",
-            "new_item": "Nuevo Plato"
+            "new_item": "Nuevo Plato",
+            "search_placeholder": "Buscar plato..."
         },
         "form": {
             "name": "Nombre",
@@ -146,7 +148,13 @@
             "stock_current": "Stock Actual",
             "stock_min": "Stock Mínimo",
             "add_item": "Agregar Item",
-            "desc_placeholder": "Agrega una descripción..."
+            "desc_placeholder": "Agrega una descripción...",
+            "recipe_title": "Receta: {name}",
+            "recipe_subtitle": "Define los ingredientes que se descontarán del inventario por cada unidad vendida.",
+            "add_ingredient": "Agregar Ingrediente",
+            "save_recipe": "Guardar Receta",
+            "ingredient_placeholder": "Seleccionar Ingrediente",
+            "recipe_btn": "Receta"
         },
         "badges": {
             "direct": "Directo",
@@ -179,7 +187,9 @@
             "new_table": "Nueva Mesa",
             "number": "# Mesa",
             "capacity": "Capacidad",
-            "date": "Fecha"
+            "date": "Fecha",
+            "blocked": "Bloqueado",
+            "free": "Libre"
         },
         "headers": {
             "category_name": "Nombre Categoría",
@@ -190,7 +200,15 @@
         }
     },
     "waiter": {
-        "title": "Tomar Pedido",
+        "title": "Panel del Mesero",
+        "my_tables": "Mis Mesas",
+        "pending_orders": "Pedidos Pendientes",
+        "ready_orders": "Pedidos Listos",
+        "items_added": "Items agregados correctamente",
+        "available": "disponibles",
+        "sold_out": "Agotado",
+        "low_stock": "Poco Stock",
+        "out_of_stock": "Sin Stock",
         "table": "Mesa",
         "tables_qr": "Mesas QRs",
         "menu_qr": "QR Menú",
@@ -256,7 +274,7 @@
         "all_caught_up": "¡Todo al día! No hay pedidos por cobrar.",
         "bill": "Cuenta",
         "pay": "Pagar",
-        "view": "Ver Details",
+        "view": "Ver Detalles",
         "payment_details": "Detalles del Pago",
         "tip": "Propina",
         "tip_options": {
@@ -355,7 +373,7 @@
         "cocinero": "Cocinero",
         "facturero": "Cajero",
         "cajero": "Cajero",
-        "admin": "Administrador"
+        "admin": "Admin"
     },
     "ticket": {
         "title": "Ticket",

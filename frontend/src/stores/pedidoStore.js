@@ -71,7 +71,12 @@ export const usePedidoStore = defineStore('pedido', () => {
     const crearPedido = async (mesa_numero, usuario_mesero_id, items, notas = '') => {
         loading.value = true;
         try {
-            const response = await api.crearPedido(mesa_numero, usuario_mesero_id, items, notas);
+            const response = await api.crearPedido({
+                mesa_numero,
+                usuario_mesero_id,
+                items,
+                notas
+            });
             // No necesitamos recargar aquí si el socket funciona, pero por seguridad lo dejamos o lo quitamos
             // await cargarPedidosActivos(); 
             return response.data;
@@ -214,6 +219,22 @@ export const usePedidoStore = defineStore('pedido', () => {
 
     // ================= CLIENT CART (Customer) =================
     const addToCart = (item) => {
+        // ✅ STOCK VALIDATION
+        if (item.usa_inventario && !item.es_directo) {
+            const stockDisponible = (item.stock_actual || 0) - (item.stock_reservado || 0);
+            // Calculate quantity already in cart
+            const inCart = cart.value
+                .filter(i => i.id === item.id)
+                .reduce((sum, i) => sum + i.quantity, 0);
+
+            if (inCart + 1 > stockDisponible) {
+                // Optional: returning false or throwing to let UI handle it
+                // For now, we'll just return early and maybe the UI checks `canAdd`
+                console.warn('Stock limit reached for customer');
+                return false;
+            }
+        }
+
         // Try to find existing item with same ID and SAME NOTES (empty initially)
         const existing = cart.value.find(i => i.id === item.id && (!i.notas || i.notas === ''));
 
@@ -229,6 +250,7 @@ export const usePedidoStore = defineStore('pedido', () => {
                 notas: ''
             });
         }
+        return true;
     };
 
     const removeFromCart = (cartItemId) => {

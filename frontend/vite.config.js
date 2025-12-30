@@ -9,11 +9,19 @@ export default defineConfig(({ mode }) => {
 
   // Limpiar URL para que no tenga doble /api
   let apiUrl = env.VITE_API_URL || '';
-  if (apiUrl.endsWith('/api')) {
-    apiUrl = apiUrl.substring(0, apiUrl.length - 4);
-  }
-  if (apiUrl.endsWith('/')) {
-    apiUrl = apiUrl.substring(0, apiUrl.length - 1);
+
+  // ✅ FORCE RELATIVE PATH IN DEVELOPMENT to allow proxying from ANY device (LAN)
+  // This ensures icons in index.html load as /api/icons/... relative to the device's URL
+  if (mode === 'development') {
+    apiUrl = '';
+  } else {
+    // Production logic
+    if (apiUrl.endsWith('/api')) {
+      apiUrl = apiUrl.substring(0, apiUrl.length - 4);
+    }
+    if (apiUrl.endsWith('/')) {
+      apiUrl = apiUrl.substring(0, apiUrl.length - 1);
+    }
   }
 
   return {
@@ -81,6 +89,11 @@ export default defineConfig(({ mode }) => {
           target: 'http://localhost:3000',
           changeOrigin: true,
           secure: false
+        },
+        '/socket.io': {
+          target: 'http://localhost:3000',
+          ws: true,
+          changeOrigin: true
         }
       }
     },

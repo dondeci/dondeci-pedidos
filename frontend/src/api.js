@@ -11,9 +11,10 @@ const getApiUrl = () => {
     (hostname.startsWith('172.') && parseInt(hostname.split('.')[1]) >= 16 && parseInt(hostname.split('.')[1]) <= 31);
 
   if (isLocal) {
-    // Modo Local: Conectar al backend en el mismo host, puerto 3000
-    console.log('🔌 Modo Local detectado: Conectando a backend local');
-    return `http://${hostname}:3000/api`;
+    // ✅ Modo Local: Usar ruta relativa para que el Proxy de Vite maneje la conexión
+    // Esto funciona tanto en localhost como en acceso LAN (192.168.x.x)
+    console.log('🔌 Modo Local detectado: Usando Proxy Vite (/api)');
+    return '/api';
   } else {
     // Modo Online: Usar URL de producción (Render)
     console.log('☁️ Modo Online detectado: Conectando a backend remoto');
@@ -149,8 +150,8 @@ export default {
   },
 
   // ============= EDICIÓN DE PEDIDOS =============
-  agregarItemsAPedido(pedidoId, items) {
-    return api.post(`/pedidos/${pedidoId}/items`, { items });
+  agregarItemsAPedido(pedidoId, data) {
+    return api.post(`/pedidos/${pedidoId}/items`, data);
   },
 
   eliminarItemDePedido(pedidoId, itemId, confirmar = false) {

@@ -415,12 +415,20 @@ const cerrarModal = () => {
 // --- Lógica Modal Detalles (Historial) ---
 const pagoDetalle = ref(null);
 
-const verDetallesPago = (pedido) => {
-  // Si recibimos ID por error, buscar (pero idealmente pasamos objeto)
-  if (typeof pedido !== 'object') {
-     pagoDetalle.value = historialPagos.value.find(p => p.id === pedido) || null;
-  } else {
-     pagoDetalle.value = pedido;
+const verDetallesPago = async (pedido) => {
+  try {
+    // Obtener ID del pedido
+    const pedidoId = typeof pedido === 'object' ? pedido.id : pedido;
+    
+    // Cargar detalles completos del pedido desde la API (incluye items)
+    const response = await api.getPedido(pedidoId);
+    pagoDetalle.value = response.data;
+  } catch (err) {
+    console.error('Error cargando detalles del pago:', err);
+    // Fallback: usar datos básicos si falla la API
+    if (typeof pedido === 'object') {
+      pagoDetalle.value = pedido;
+    }
   }
 };
 

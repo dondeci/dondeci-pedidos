@@ -32,6 +32,7 @@
         "table": "Table",
         "people": "People",
         "uploading": "Uploading...",
+        "upload": "Upload",
         "sending": "Sending...",
         "unassigned": "Unassigned"
     },
@@ -46,14 +47,14 @@
         "tip": "Tip",
         "total_pay": "Total to Pay",
         "request_btn": "Request Bill",
-        "requested_btn": "✅ Bill Requested",
+        "requested_btn": "Bill Requested",
         "requested_msg": "Your waiter has been notified and will come shortly.",
         "footer": "Thank you for choosing",
         "loading": "Loading bill...",
         "error_title": "Could not load bill",
         "error_msg": "We could not load the bill. Verify the ID is correct.",
         "invalid_id": "Invalid bill ID",
-        "alert_requested": "✅ Your waiter has been notified and will come shortly for payment."
+        "alert_requested": "Your waiter has been notified and will come shortly for payment."
     },
     "status": {
         "nuevo": "New",
@@ -131,7 +132,8 @@
         },
         "menu": {
             "view_menu": "View Digital Menu / PDF",
-            "new_item": "New Dish"
+            "new_item": "New Dish",
+            "search_placeholder": "Search dish..."
         },
         "form": {
             "name": "Name",
@@ -146,7 +148,13 @@
             "stock_current": "Current Stock",
             "stock_min": "Min Stock",
             "add_item": "Add Item",
-            "desc_placeholder": "Add a description..."
+            "desc_placeholder": "Add a description...",
+            "recipe_title": "Recipe: {name}",
+            "recipe_subtitle": "Define ingredients to deduct from inventory for each unit sold.",
+            "add_ingredient": "Add Ingredient",
+            "save_recipe": "Save Recipe",
+            "ingredient_placeholder": "Select Ingredient",
+            "recipe_btn": "Recipe"
         },
         "badges": {
             "direct": "Direct",
@@ -179,7 +187,9 @@
             "new_table": "New Table",
             "number": "# Table",
             "capacity": "Capacity",
-            "date": "Date"
+            "date": "Date",
+            "blocked": "Blocked",
+            "free": "Free"
         },
         "headers": {
             "category_name": "Category Name",
@@ -190,15 +200,23 @@
         }
     },
     "waiter": {
-        "title": "Take Order",
+        "title": "Waiter Panel",
+        "my_tables": "My Tables",
+        "pending_orders": "Pending Orders",
+        "ready_orders": "Ready Orders",
+        "items_added": "Items added successfully",
+        "available": "available",
+        "sold_out": "Sold Out",
+        "low_stock": "Low Stock",
+        "out_of_stock": "Out of Stock",
         "table": "Table",
         "tables_qr": "Tables QRs",
         "menu_qr": "Menu QR",
         "update": "Update",
         "loading": "Loading data...",
-        "select_table": "1️⃣ Select Table",
-        "select_dishes": "2️⃣ Select Dishes",
-        "order_summary": "3️⃣ Order Summary",
+        "select_table": "Select Table",
+        "select_dishes": "Select Dishes",
+        "order_summary": "Order Summary",
         "items_ready": "Items Ready to Serve",
         "orders_served": "Served Orders - Ready to Pay",
         "orders_in_progress": "Your Orders in Progress",
@@ -352,7 +370,7 @@
         "mesero": "Waiter",
         "cocinero": "Chef",
         "facturero": "Cashier",
-        "admin": "Administrator"
+        "admin": "Admin"
     },
     "ticket": {
         "title": "Ticket",

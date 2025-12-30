@@ -1,18 +1,32 @@
 <template>
-  <div class="product-card" @click="emit('add', item)">
+  <div class="product-card" @click="canAdd ? emit('add', item) : null" :class="{ 'disabled': !canAdd }">
     <div class="image-container">
       <img 
         v-if="item.image_url" 
         :src="item.image_url" 
         :alt="item.nombre" 
         loading="lazy"
+        :class="{ 'grayscale': !canAdd }"
       />
-      <div v-else class="image-placeholder">
+      <div v-else class="image-placeholder" :class="{ 'grayscale': !canAdd }">
         <span class="emoji">🍽️</span>
       </div>
       
+      <!-- Badges -->
       <div v-if="quantity > 0" class="quantity-badge">
         {{ quantity }}
+      </div>
+
+      <!-- NEW: Remaining Stock Counter -->
+      <div v-if="showStockCounter" class="stock-badge remaining" :class="{ 'warn': remainingStock < 5 }">
+        {{ remainingStock }} {{ $t('waiter.available') || 'disp.' }}
+      </div>
+
+      <div v-if="isSoldOut" class="stock-badge out">
+        {{ $t('waiter.sold_out') || 'Agotado' }}
+      </div>
+      <div v-else-if="isLowStock && !showStockCounter" class="stock-badge low">
+        {{ $t('waiter.low_stock') || 'Poco Stock' }}
       </div>
     </div>
     
@@ -23,9 +37,9 @@
       </div>
       <p class="description" v-if="item.descripcion">{{ truncate(item.descripcion, 50) }}</p>
       
-      <button class="btn-add">
+      <button class="btn-add" :disabled="!canAdd">
         <Plus :size="16" />
-        {{ $t('customer.add_to_cart') }}
+        {{ canAdd ? $t('customer.add_to_cart') : ($t('waiter.out_of_stock') || 'Agotado') }}
       </button>
     </div>
   </div>
@@ -47,6 +61,36 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['add']);
+
+// Stock Logic
+const stockDisponible = computed(() => {
+  if (!props.item.usa_inventario || props.item.es_directo) return 9999;
+  return (props.item.stock_actual || 0) - (props.item.stock_reservado || 0);
+});
+
+// ✅ Dynamic remaining stock (decreases as you add to cart)
+const remainingStock = computed(() => {
+  return Math.max(0, stockDisponible.value - props.quantity);
+});
+
+const showStockCounter = computed(() => {
+  return props.item.usa_inventario && !props.item.es_directo && remainingStock.value < 9999;
+});
+
+const isSoldOut = computed(() => {
+   // Assuming 'no_disponible' state or calculated stock <= 0
+   return props.item.estado_inventario === 'no_disponible' || stockDisponible.value <= 0;
+});
+
+const isLowStock = computed(() => {
+  return props.item.estado_inventario === 'poco_stock' && !isSoldOut.value;
+});
+
+const canAdd = computed(() => {
+  if (isSoldOut.value) return false;
+  // Check if adding 1 more would exceed stock based on REMAINING
+  return remainingStock.value > 0;
+});
 
 const formatPrice = (price) => {
   return typeof price === 'number' ? price.toFixed(0) : price;
@@ -75,11 +119,20 @@ const truncate = (text, length) => {
   transform: scale(0.98);
 }
 
+.product-card.disabled {
+  opacity: 0.8;
+  cursor: not-allowed;
+}
+
 .image-container {
   height: 140px;
   background: #f1f5f9;
   position: relative;
   overflow: hidden;
+}
+
+.grayscale {
+  filter: grayscale(100%);
 }
 
 .image-container img {
@@ -114,6 +167,30 @@ const truncate = (text, length) => {
   font-weight: bold;
   font-size: 0.9rem;
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  z-index: 2;
+}
+
+.stock-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px; /* Different position than quantity */
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  z-index: 2;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.stock-badge.out {
+  background: #ef4444; /* Red */
+  color: white;
+}
+
+.stock-badge.low {
+  background: #f59e0b; /* Amber */
+  color: white;
 }
 
 .content {
@@ -128,6 +205,7 @@ const truncate = (text, length) => {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 0.5rem;
+  gap: 8px;
 }
 
 .name {
@@ -144,6 +222,7 @@ const truncate = (text, length) => {
   padding: 2px 8px;
   border-radius: 8px;
   font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 .description {
@@ -172,5 +251,12 @@ const truncate = (text, length) => {
 .btn-add:hover {
   background: var(--primary-color, #ff6b6b);
   color: white;
+}
+
+.btn-add:disabled {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
 }
 </style>
