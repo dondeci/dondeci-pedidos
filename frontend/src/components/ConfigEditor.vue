@@ -273,7 +273,7 @@ const subirImagenConfig = async (event, campo) => {
   formData.append('image', file);
   
   try {
-    const res = await api.uploadImage(formData);
+    const res = await api.uploadMenuImage(formData);
     localConfig.value[campo] = res.data.url;
   } catch (err) {
     console.error('Error:', err);
@@ -288,7 +288,7 @@ const subirIcono = async (event, campo) => {
   formData.append('image', file);
   
   try {
-    const res = await api.uploadImage(formData);
+    const res = await api.uploadMenuImage(formData);
     localConfig.value[campo] = res.data.url;
   } catch (err) {
     console.error('Error:', err);

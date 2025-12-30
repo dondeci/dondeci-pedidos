@@ -432,7 +432,7 @@ const subirImagenItem = async (event) => {
   formData.append('image', file);
   
   try {
-    const res = await api.uploadImage(formData);
+    const res = await api.uploadMenuImage(formData);
     newItem.value.image_url = res.data.url;
   } catch (err) {
     console.error('Error:', err);
@@ -450,7 +450,7 @@ const subirImagenItemExistente = async (event, item) => {
   formData.append('image', file);
   
   try {
-    const res = await api.uploadImage(formData);
+    const res = await api.uploadMenuImage(formData);
     item.image_url = res.data.url;
     await actualizarItem(item);
   } catch (err) {
