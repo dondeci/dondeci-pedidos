@@ -163,7 +163,7 @@ const confirmOrder = async () => {
   position: absolute;
   bottom: 2rem;
   right: 2rem; /* Floating on right by default */
-  background: var(--primary-color, #ff6b6b);
+  background: var(--theme-color, #ff6b6b);
   color: white;
   border: none;
   border-radius: 50px;
@@ -179,7 +179,7 @@ const confirmOrder = async () => {
 
 .badge {
   background: white;
-  color: var(--primary-color);
+  color: var(--theme-color);
   padding: 2px 8px;
   border-radius: 10px;
   font-size: 0.9rem;
@@ -191,10 +191,10 @@ const confirmOrder = async () => {
   bottom: 0;
   width: 100%;
   max-width: 600px;
-  background: white;
+  background: var(--customer-surface);
   border-top-left-radius: 20px;
   border-top-right-radius: 20px;
-  box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+  box-shadow: 0 -4px 20px var(--customer-shadow);
   display: flex;
   flex-direction: column;
   max-height: 80vh;
@@ -203,7 +203,7 @@ const confirmOrder = async () => {
 
 .cart-header {
   padding: 1.5rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--customer-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -212,15 +212,16 @@ const confirmOrder = async () => {
 .header-left h3 {
   margin: 0;
   font-size: 1.2rem;
+  color: var(--customer-text-primary);
 }
 
 .item-count {
   font-size: 0.9rem;
-  color: #64748b;
+  color: var(--customer-text-secondary);
 }
 
 .btn-close {
-  background: #f1f5f9;
+  background: var(--customer-bg-tertiary);
   border: none;
   border-radius: 50%;
   width: 36px;
@@ -229,6 +230,7 @@ const confirmOrder = async () => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  color: var(--customer-text-primary);
 }
 
 .cart-items {
@@ -238,7 +240,7 @@ const confirmOrder = async () => {
 }
 
 .cart-item {
-  border-bottom: 1px solid #f8fafc;
+  border-bottom: 1px solid var(--customer-border);
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
 }
@@ -259,11 +261,12 @@ const confirmOrder = async () => {
 .item-details h4 {
   margin: 0 0 0.3rem;
   font-size: 1rem;
+  color: var(--customer-text-primary);
 }
 
 .price {
   margin: 0;
-  color: var(--primary-color);
+  color: var(--theme-color);
   font-weight: 600;
 }
 
@@ -274,29 +277,29 @@ const confirmOrder = async () => {
 }
 
 .btn-split {
-  background: white;
-  border: 1px dashed #cbd5e1;
+  background: var(--customer-surface);
+  border: 1px dashed var(--customer-border);
   border-radius: 8px;
   width: 30px;
   height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #64748b;
+  color: var(--customer-text-secondary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .btn-split:active {
   transform: scale(0.9);
-  background: #f1f5f9;
+  background: var(--customer-bg-tertiary);
 }
 
 .quantity-controls {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #f8fafc;
+  background: var(--customer-bg-tertiary);
   padding: 4px;
   border-radius: 12px;
 }
@@ -305,32 +308,34 @@ const confirmOrder = async () => {
   width: 28px;
   height: 28px;
   border: none;
-  background: white;
+  background: var(--customer-surface);
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px var(--customer-shadow);
   font-weight: bold;
   cursor: pointer;
+  color: var(--customer-text-primary);
 }
 
 .item-notes input {
   width: 100%;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--customer-border);
   border-radius: 8px;
   padding: 0.5rem;
   font-size: 0.9rem;
-  background: #f9fafb;
+  background: var(--customer-bg-tertiary);
+  color: var(--customer-text-primary);
 }
 
 .item-notes input:focus {
   outline: none;
-  border-color: var(--primary-color);
-  background: white;
+  border-color: var(--theme-color);
+  background: var(--customer-surface);
 }
 
 .cart-footer {
   padding: 1.5rem;
-  border-top: 1px solid #f1f5f9;
-  background: white;
+  border-top: 1px solid var(--customer-border);
+  background: var(--customer-surface);
 }
 
 .total-row {
@@ -339,12 +344,13 @@ const confirmOrder = async () => {
   font-size: 1.2rem;
   font-weight: 700;
   margin-bottom: 1rem;
+  color: var(--customer-text-primary);
 }
 
 .btn-checkout {
   width: 100%;
   padding: 1rem;
-  background: var(--primary-color, #ff6b6b);
+  background: var(--theme-color, #ff6b6b);
   color: white;
   border: none;
   border-radius: 16px;

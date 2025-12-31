@@ -613,8 +613,50 @@
 }
 
 .status-listo {
-  background: #dcfce7;
-  color: #166534;
+  background: #22c55e;
+  color: white;
+  font-weight: 700;
+}
+
+.status-servido {
+  background: #3b82f6;
+  color: white;
+  font-weight: 700;
+}
+
+.status-listo_pagar {
+  background: #8b5cf6;
+  color: white;
+  font-weight: 700;
+}
+
+/* Mini status pills for editor modal */
+.status-pill-mini {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-pill-mini.status-pendiente {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.status-pill-mini.status-en_preparacion {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status-pill-mini.status-listo {
+  background: #22c55e;
+  color: white;
+}
+
+.status-pill-mini.status-servido {
+  background: #3b82f6;
+  color: white;
 }
 
 .active-meta {
@@ -769,9 +811,7 @@
 }
 
 .btn-close-modal {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
+  position: relative;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -892,7 +932,7 @@
 }
 
 .editor-item-row {
-  background: white;
+  background: var(--w-card-bg);
   border: 1px solid var(--w-border);
   border-radius: 12px;
   padding: 12px;
@@ -904,6 +944,7 @@
   font-weight: 600;
   margin-bottom: 8px;
   font-size: 1rem;
+  color: var(--w-text);
 }
 
 .editor-item-meta {
@@ -970,7 +1011,7 @@
 }
 
 .item-card-mini {
-  background: white;
+  background: var(--w-card-bg);
   border: 1px solid var(--w-border);
   border-radius: 12px;
   padding: 0;
@@ -999,6 +1040,7 @@
   font-weight: 600;
   font-size: 0.95rem;
   line-height: 1.2;
+  color: var(--w-text);
 }
 
 .mini-price {
@@ -1018,8 +1060,8 @@
 
 /* Pending Items (Items por agregar) */
 .pending-section {
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
+  background: var(--bg-secondary);
+  border: 2px solid var(--w-primary);
   border-radius: 12px;
   padding: 1rem;
   margin-top: 1rem;
@@ -1027,8 +1069,9 @@
 
 .pending-section h5 {
   margin: 0 0 0.75rem 0;
-  color: #c2410c;
+  color: var(--w-primary);
   font-size: 1rem;
+  font-weight: 700;
 }
 
 .pending-list {
@@ -1039,10 +1082,10 @@
 }
 
 .pending-item {
-  background: white;
+  background: var(--w-card-bg);
   border-radius: 8px;
   padding: 10px;
-  border: 1px solid #ffedd5;
+  border: 1px solid var(--w-border);
 }
 
 .pending-header {
@@ -1429,7 +1472,7 @@
   padding: 12px;
 }
 
-.item-nombre {
+.item-name {
   font-weight: 600;
   font-size: 0.9rem;
   margin-bottom: 6px;

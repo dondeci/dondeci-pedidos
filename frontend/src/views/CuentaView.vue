@@ -126,7 +126,8 @@ const loading = ref(true);
 const error = ref(null);
 const cuentaSolicitada = ref(false);
 
-const cuentaId = route.params.id;
+// ✅ FIX: Initialize cuentaId as ref, will be set in onMounted when router is ready
+const cuentaId = ref(null);
 const esMeseroLogueado = ref(false);
 
 const volverAtras = () => {
@@ -143,10 +144,26 @@ const volverAtras = () => {
 
 const detectarLogin = () => {
   try {
-    const token = localStorage.getItem('token');
+    // ⚠️ CRITICAL FIX: Backend currently does not return token, only user data.
+    // We must rely on 'usuario' object presence for client-side auth state.
     const usuario = localStorage.getItem('usuario');
-    esMeseroLogueado.value = !!(token && usuario);
-  } catch {
+    
+    console.log('🔍 CuentaView - Auth Debug:', { usuario });
+
+    if (usuario) {
+       const userObj = JSON.parse(usuario);
+       // Simple validation: if user has an ID and role, consider them logged in
+       if (userObj.id && userObj.rol) {
+           esMeseroLogueado.value = true;
+           console.log('✅ User detected as staff:', userObj.rol);
+           return;
+       }
+    }
+    
+    esMeseroLogueado.value = false;
+    console.log('❌ No valid staff session found');
+  } catch (e) {
+    console.error('Error detecting login:', e);
     esMeseroLogueado.value = false;
   }
 };
@@ -175,7 +192,7 @@ const cargarPedido = async () => {
   loading.value = true;
   error.value = null;
   try {
-    const response = await api.getPedidoStatusPublico(cuentaId);
+    const response = await api.getPedidoStatusPublico(cuentaId.value);
     pedido.value = response.data.pedido;
     items.value = response.data.items || [];
     
@@ -247,7 +264,16 @@ const calcularPorcentajePropina = () => {
 };
 
 onMounted(() => {
-  if (cuentaId) {
+  // ✅ FIX: Get ID from route params AFTER router is fully initialized
+  cuentaId.value = route.params.id;
+  
+  // ✅ DEBUG: Log route information
+  console.log('🔍 onMounted - Route params:', route.params);
+  console.log('🔍 onMounted - Route path:', route.path);
+  console.log('🔍 onMounted - Route name:', route.name);
+  console.log('🔍 onMounted - cuentaId:', cuentaId.value);
+  
+  if (cuentaId.value) {
     cargarPedido();
     detectarLogin();
     
@@ -257,7 +283,7 @@ onMounted(() => {
     // Listen for order status updates
     socket.on('pedido_actualizado', (data) => {
       // Only update if it's this specific order
-      if (data.id === cuentaId) {
+      if (data.id === cuentaId.value) {
         console.log('📝 Order status updated:', data);
         // Reload order data to get latest status
         cargarPedido();
@@ -266,13 +292,14 @@ onMounted(() => {
     
     // Listen for payment updates
     socket.on('pedido_pagado', (data) => {
-      if (data.pedido_id === cuentaId) {
+      if (data.pedido_id === cuentaId.value) {
         console.log('💰 Payment registered:', data);
         // Reload order data to reflect payment
         cargarPedido();
       }
     });
   } else {
+    console.error('❌ No cuentaId found in route params!');
     error.value = t('bill.invalid_id');
     loading.value = false;
   }
@@ -308,7 +335,7 @@ onUnmounted(() => {
   width: 40px;
   height: 40px;
   border: 4px solid var(--border-color);
-  border-top-color: var(--primary-color, #ff6b6b);
+  border-top-color: var(--theme-color, #ff6b6b);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -337,6 +364,7 @@ onUnmounted(() => {
   font-size: 1.25rem;
   font-weight: 800;
   margin: 0;
+  color: var(--text-primary);
 }
 
 .placeholder { width: 40px; } 
@@ -371,14 +399,14 @@ onUnmounted(() => {
 }
 
 .table-badge { background: #fee2e2; color: #ef4444; }
-.id-badge { background: #e2e8f0; color: #475569; }
+.id-badge { background: var(--bg-secondary); color: var(--text-secondary); }
 
 /* Cards */
 .status-card {
   background: var(--card-bg);
   border-radius: 20px;
   padding: 1.5rem;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05); /* Usar sombra genérica o variable global si existe */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -396,7 +424,7 @@ onUnmounted(() => {
   background: var(--bg-secondary);
   padding: 10px;
   border-radius: 12px;
-  color: var(--primary-color, #ff6b6b);
+  color: var(--theme-color, #ff6b6b);
 }
 
 .status-details {
@@ -404,9 +432,9 @@ onUnmounted(() => {
   flex-direction: column;
 }
 
-.label { font-size: 0.8rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
-.value { font-size: 1.1rem; font-weight: 700; color: #1e293b; }
-.value-highlight { font-size: 1.2rem; font-weight: 800; color: var(--primary-color, #ff6b6b); }
+.label { font-size: 0.8rem; color: var(--text-secondary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+.value { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+.value-highlight { font-size: 1.2rem; font-weight: 800; color: var(--theme-color, #ff6b6b); }
 
 .divider-vertical {
   width: 1px;
@@ -418,7 +446,7 @@ onUnmounted(() => {
   background: var(--card-bg);
   border-radius: 20px;
   padding: 1.5rem;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
   margin-bottom: 2rem;
   border: 1px solid var(--border-color);
 }
@@ -426,7 +454,7 @@ onUnmounted(() => {
 .bill-card h3 {
   margin: 0 0 1.5rem;
   font-size: 1.1rem;
-  color: #334155;
+  color: var(--text-primary);
 }
 
 .item-row {
@@ -443,6 +471,7 @@ onUnmounted(() => {
 
 .qty-badge {
   background: var(--bg-secondary);
+  color: var(--text-primary);
   padding: 2px 8px;
   border-radius: 6px;
   font-weight: 700;
@@ -463,7 +492,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   margin-bottom: 0.8rem;
-  color: #64748b;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -481,13 +510,13 @@ onUnmounted(() => {
   color: var(--text-primary);
 }
 
-.total-amount { color: var(--primary-color, #ff6b6b); }
+.total-amount { color: var(--theme-color, #ff6b6b); }
 
 /* Buttons */
 .btn-primary {
   width: 100%;
   padding: 1rem;
-  background: var(--primary-color, #ff6b6b);
+  background: var(--theme-color, #ff6b6b);
   color: white;
   border: none;
   border-radius: 16px;

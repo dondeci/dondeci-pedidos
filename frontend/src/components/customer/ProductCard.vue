@@ -104,10 +104,10 @@ const truncate = (text, length) => {
 
 <style scoped>
 .product-card {
-  background: white;
+  background: var(--customer-surface);
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 15px var(--customer-shadow);
   transition: transform 0.2s, box-shadow 0.2s;
   cursor: pointer;
   display: flex;
@@ -126,7 +126,7 @@ const truncate = (text, length) => {
 
 .image-container {
   height: 140px;
-  background: #f1f5f9;
+  background: var(--customer-bg-tertiary);
   position: relative;
   overflow: hidden;
 }
@@ -149,14 +149,14 @@ const truncate = (text, length) => {
   align-items: center;
   justify-content: center;
   font-size: 2rem;
-  background: #f8fafc;
+  background: var(--customer-bg-secondary);
 }
 
 .quantity-badge {
   position: absolute;
   top: 8px;
   right: 8px;
-  background: var(--primary-color, #ff6b6b);
+  background: var(--theme-color, #ff6b6b);
   color: white;
   width: 28px;
   height: 28px;
@@ -213,11 +213,12 @@ const truncate = (text, length) => {
   font-weight: 700;
   margin: 0;
   line-height: 1.2;
+  color: var(--customer-text-primary);
 }
 
 .price {
   font-weight: 600;
-  color: var(--primary-color, #ff6b6b);
+  color: var(--theme-color, #ff6b6b);
   background: rgba(255, 107, 107, 0.1);
   padding: 2px 8px;
   border-radius: 8px;
@@ -227,7 +228,7 @@ const truncate = (text, length) => {
 
 .description {
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--customer-text-secondary);
   margin: 0 0 1rem;
   flex: 1;
 }
@@ -235,9 +236,9 @@ const truncate = (text, length) => {
 .btn-add {
   width: 100%;
   padding: 0.6rem;
-  border: 1px solid var(--primary-color, #ff6b6b);
+  border: 1px solid var(--theme-color, #ff6b6b);
   background: transparent;
-  color: var(--primary-color, #ff6b6b);
+  color: var(--theme-color, #ff6b6b);
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
@@ -249,14 +250,14 @@ const truncate = (text, length) => {
 }
 
 .btn-add:hover {
-  background: var(--primary-color, #ff6b6b);
+  background: var(--theme-color, #ff6b6b);
   color: white;
 }
 
 .btn-add:disabled {
-  border-color: #cbd5e1;
-  background: #f1f5f9;
-  color: #94a3b8;
+  border-color: var(--customer-border);
+  background: var(--customer-bg-tertiary);
+  color: var(--customer-text-tertiary);
   cursor: not-allowed;
 }
 </style>

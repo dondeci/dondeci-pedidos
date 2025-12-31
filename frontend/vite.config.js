@@ -3,6 +3,8 @@ import vue from '@vitejs/plugin-vue'
 import { createHtmlPlugin } from 'vite-plugin-html'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
@@ -24,7 +26,13 @@ export default defineConfig(({ mode }) => {
     }
   }
 
+  // ✅ Read package version
+  const pkg = require('./package.json')
+
   return {
+    define: {
+      '__APP_VERSION__': JSON.stringify(pkg.version)
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

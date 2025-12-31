@@ -31,7 +31,15 @@ const api = axios.create({
   },
 });
 
-// ✅ Interceptor para agregar token automáticamente
+// ✅ Create a separate instance for PUBLIC endpoints (no auth)
+const publicApi = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// ✅ Interceptor para agregar token automáticamente (SOLO para api autenticado)
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -212,11 +220,12 @@ export default {
 
   // ============= PÚBLICO (Sin autenticación) =============
   getPedidoStatusPublico(id) {
-    return api.get(`/pedidos/${id}/status-publico`);
+    // Use publicApi instance (no auth interceptor)
+    return publicApi.get(`/pedidos/${id}/status-publico`);
   },
 
   getMesaPedidoActual(mesaNumero) {
-    return api.get(`/mesas/${mesaNumero}/pedido-actual`);
+    return publicApi.get(`/mesas/${mesaNumero}/pedido-actual`);
   },
 
   // ============= IMPRESORA =============

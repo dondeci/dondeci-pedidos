@@ -980,7 +980,9 @@ const confirmarListoPagar = async () => {
 };
 
 const verCuenta = (pedidoId) => {
-  router.push({ name: 'cuenta', params: { id: pedidoId } });
+  if (!pedidoId) return;
+  // Navigate in same tab - CuentaView will detect mesero login and show back button to panel
+  router.push(`/cuenta/${pedidoId}`);
 };
 
 const cancelarPedido = async (pedidoId) => {

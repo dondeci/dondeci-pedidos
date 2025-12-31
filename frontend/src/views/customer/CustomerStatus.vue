@@ -368,7 +368,7 @@ onUnmounted(() => {
 <style scoped>
 .customer-status {
   padding: 1rem;
-  background: #f8fafc;
+  background: var(--customer-bg-primary);
   min-height: 100vh;
   padding-bottom: 100px;
 }
@@ -384,22 +384,23 @@ onUnmounted(() => {
   font-size: 1.5rem;
   font-weight: 800;
   margin: 0;
+  color: var(--customer-text-primary);
 }
 
 .table-badge {
-  background: white;
+  background: var(--customer-surface);
   padding: 0.5rem 1rem;
   border-radius: 20px;
   font-weight: 700;
-  color: var(--primary-color, #ff6b6b);
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  color: var(--theme-color, #ff6b6b);
+  box-shadow: 0 2px 10px var(--customer-shadow);
 }
 
 .progress-card {
-  background: white;
+  background: var(--customer-surface);
   padding: 1.5rem;
   border-radius: 20px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 15px var(--customer-shadow);
   margin-bottom: 2rem;
 }
 
@@ -438,39 +439,41 @@ onUnmounted(() => {
 .step-icon {
   width: 40px;
   height: 40px;
-  background: white;
-  border: 2px solid #e2e8f0;
+  background: var(--customer-surface);
+  border: 2px solid var(--customer-border);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 0.5rem;
   transition: all 0.3s;
+  color: var(--customer-text-secondary);
 }
 
 .step.active .step-icon {
-  border-color: var(--primary-color, #ff6b6b);
-  background: var(--primary-color, #ff6b6b);
+  border-color: var(--theme-color, #ff6b6b);
+  background: var(--theme-color, #ff6b6b);
   color: white;
   transform: scale(1.1);
   box-shadow: 0 4px 10px rgba(255, 107, 107, 0.3);
 }
 
 .step.completed .step-icon {
-  border-color: var(--primary-color, #ff6b6b);
-  color: var(--primary-color, #ff6b6b);
+  border-color: var(--theme-color, #ff6b6b);
+  color: var(--theme-color, #ff6b6b);
 }
 
 .step-label {
   font-size: 0.75rem;
   font-weight: 600;
+  color: var(--customer-text-secondary);
 }
 
 .status-message {
   text-align: center;
-  color: #64748b;
+  color: var(--customer-text-secondary);
   font-weight: 500;
-  background: #f8fafc;
+  background: var(--customer-bg-tertiary);
   padding: 1rem;
   border-radius: 12px;
 }
@@ -478,19 +481,20 @@ onUnmounted(() => {
 .order-list h3 {
   font-size: 1.2rem;
   margin-bottom: 1rem;
+  color: var(--customer-text-primary);
 }
 
 .order-group {
-  background: white;
+  background: var(--customer-surface);
   border-radius: 16px;
   margin-bottom: 1rem;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 8px var(--customer-shadow);
   overflow: hidden;
 }
 
 .order-item {
   padding: 1rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--customer-border);
 }
 
 .item-main {
@@ -501,13 +505,14 @@ onUnmounted(() => {
 
 .qty {
   font-weight: 800;
-  color: var(--primary-color);
+  color: var(--theme-color);
   width: 30px;
 }
 
 .name {
   flex: 1;
   font-weight: 600;
+  color: var(--customer-text-primary);
 }
 .item-meta {
   display: flex;
@@ -559,8 +564,8 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   padding: 1rem;
-  background: white;
-  box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+  background: var(--customer-surface);
+  box-shadow: 0 -4px 20px var(--customer-shadow);
   display: flex;
   gap: 1rem;
   justify-content: center;
@@ -582,13 +587,13 @@ onUnmounted(() => {
 }
 
 .btn-add-more {
-  background: var(--primary-color, #ff6b6b);
+  background: var(--theme-color, #ff6b6b);
   color: white;
 }
 
 .btn-bill {
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--customer-bg-tertiary);
+  color: var(--customer-text-primary);
 }
 
 .modal-overlay {
@@ -606,7 +611,7 @@ onUnmounted(() => {
 }
 
 .modal-content {
-  background: white;
+  background: var(--customer-surface);
   padding: 1.5rem;
   border-radius: 16px;
   width: 90%;
@@ -615,16 +620,18 @@ onUnmounted(() => {
 
 textarea {
   width: 100%;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--customer-border);
   border-radius: 8px;
   padding: 0.8rem;
   margin: 1rem 0;
   font-family: inherit;
   resize: none;
+  background: var(--customer-bg-tertiary);
+  color: var(--customer-text-primary);
 }
 
 textarea:focus {
-  border-color: var(--primary-color);
+  border-color: var(--theme-color);
   outline: none;
 }
 
@@ -642,8 +649,8 @@ textarea:focus {
   cursor: pointer;
 }
 
-.btn-cancel { background: #f1f5f9; color: #64748b; }
-.btn-save { background: var(--primary-color, #ff6b6b); color: white; }
+.btn-cancel { background: var(--customer-bg-tertiary); color: var(--customer-text-secondary); }
+.btn-save { background: var(--theme-color, #ff6b6b); color: white; }
 
 /* Progress Bar Styles */
 .item-progress-track {
@@ -675,10 +682,10 @@ textarea:focus {
 }
 
 .paid-success {
-  background: white;
+  background: var(--customer-surface);
   padding: 3rem;
   border-radius: 24px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 25px var(--customer-shadow-lg);
   max-width: 400px;
   width: 90%;
   animation: slideUp 0.5s ease-out;
@@ -710,7 +717,7 @@ textarea:focus {
   padding: 1rem;
   border-radius: 12px;
   border: none;
-  background: var(--primary-color, #ff6b6b);
+  background: var(--theme-color, #ff6b6b);
   color: white;
   font-weight: 700;
   font-size: 1.1rem;

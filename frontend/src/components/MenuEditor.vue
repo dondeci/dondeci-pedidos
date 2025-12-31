@@ -377,7 +377,7 @@ const urlMenuDinamica = computed(() => {
 // Methods
 const crearItem = async () => {
   try {
-    await api.createMenuItem(newItem.value);
+    await api.agregarMenuItem(newItem.value);
     newItem.value = { 
       nombre: '', descripcion: '', precio: 0, categoria: '',
       tiempo_estimado: 15, usa_inventario: false, stock_actual: 0,
@@ -497,9 +497,7 @@ const removeIngredientRow = (index) => {
 };
 const saveRecipe = async () => {
   try {
-    await api.saveRecipe(currentRecipeItem.value.id, {
-      ingredients: currentRecipeIngredients.value
-    });
+    await api.saveRecipe(currentRecipeItem.value.id, currentRecipeIngredients.value);
     closeRecipeModal();
     emit('refresh');
   } catch (err) {

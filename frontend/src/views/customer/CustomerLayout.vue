@@ -8,10 +8,14 @@
         </transition>
       </router-view>
     </main>
+    
+    <!-- Floating Theme Toggle -->
+    <ThemeToggle />
   </div>
 </template>
 
 <script setup>
+import ThemeToggle from '@/components/ThemeToggle.vue';
 // Layout specific for customer view
 // Could include a common header or footer if needed in the future
 </script>
@@ -19,8 +23,8 @@
 <style scoped>
 .customer-layout {
   min-height: 100vh;
-  background-color: var(--bg-color, #f8fafc);
-  color: var(--text-color, #1e293b);
+  background-color: var(--customer-bg-primary);
+  color: var(--customer-text-primary);
   display: flex;
   flex-direction: column;
 }
@@ -31,9 +35,9 @@
   max-width: 600px; /* Mobile-first focus */
   margin: 0 auto;
   position: relative;
-  background: white;
+  background: var(--customer-surface);
   min-height: 100vh;
-  box-shadow: 0 0 20px rgba(0,0,0,0.05);
+  box-shadow: 0 0 20px var(--customer-shadow);
 }
 
 .fade-enter-active,

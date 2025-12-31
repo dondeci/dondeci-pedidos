@@ -8,12 +8,9 @@
 
     <!-- Vista Pública del Estado del Pedido -->
     <PedidoStatus v-else-if="isPublicPedidoStatus" />
-
-    <!-- ✅ Vista Pública de la Cuenta -->
-    <CuentaView v-else-if="isPublicCuenta" />
     
-    <!-- ✅ Flujo de Cliente (Router) -->
-    <router-view v-else-if="isCustomerFlow" />
+    <!-- ✅ Flujo de Cliente Y Cuenta (Router) -->
+    <router-view v-else-if="isCustomerFlow || isPublicCuenta" />
 
     <!-- Aplicación Principal -->
     <template v-else>
@@ -124,11 +121,28 @@
         </div>
       </template>
     </template>
+    <!-- Banner de Actualización -->
+    <transition name="slide-up">
+      <div v-if="updateAvailable" class="update-banner">
+        <div class="update-content">
+          <AlertTriangle :size="20" class="update-icon" />
+          <div class="update-text">
+            <strong>{{ $t('common.update_available') }}</strong>
+            <span>{{ $t('common.update_desc', { version: remoteVersion }) }}</span>
+          </div>
+        </div>
+        <button @click="reloadApp" class="btn-refresh-app">
+          <RefreshCw :size="16" class="icon-spin-hover" />
+          {{ $t('common.refresh') }}
+        </button>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { usePedidoStore } from './stores/pedidoStore';
 import { useUsuarioStore } from './stores/usuarioStore';
 import LoginForm from './components/LoginForm.vue';
@@ -142,7 +156,7 @@ import PedidoStatus from './components/PedidoStatus.vue';
 import CuentaView from './views/CuentaView.vue';
 import { 
   UtensilsCrossed, LogOut, Wifi, WifiOff, ChevronDown, 
-  Sun, Moon, Check, Globe 
+  Sun, Moon, Check, Globe, AlertTriangle, RefreshCw 
 } from 'lucide-vue-next';
 
 import socket from './socket';
@@ -162,18 +176,27 @@ const isUserMenuOpen = ref(false);
 const userMenuRef = ref(null);
 const isDarkMode = ref(false);
 
+// Update State
+const updateAvailable = ref(false);
+const remoteVersion = ref('');
+// eslint-disable-next-line no-undef
+const currentVersion = __APP_VERSION__;
+
 const supportedLanguages = [
   { code: 'es', name: 'Español', flag: '🇪🇸' },
   { code: 'en', name: 'English', flag: '🇺🇸' }
 ];
 
-const toggleUserMenu = () => {
+const toggleUserMenu = (event) => {
+  // console.log('🔘 User Menu Toggled. Previous state:', isUserMenuOpen.value);
+  // console.log('🔘 Event type:', event?.type);
   isUserMenuOpen.value = !isUserMenuOpen.value;
 };
 
 // Close dropdown on click outside
 const handleClickOutside = (event) => {
-  if (userMenuRef.value && !userMenuRef.value.contains(event.target)) {
+  if (isUserMenuOpen.value && userMenuRef.value && !userMenuRef.value.contains(event.target)) {
+    // console.log('👋 Click outside detected. Closing menu.');
     isUserMenuOpen.value = false;
   }
 };
@@ -190,10 +213,27 @@ const setLanguage = (code) => {
   localStorage.setItem('locale', code);
 };
 
+const checkForUpdates = (serverVersion) => {
+  if (serverVersion && serverVersion !== currentVersion) {
+    console.log(`✨ Update available: ${currentVersion} -> ${serverVersion}`);
+    remoteVersion.value = serverVersion;
+    updateAvailable.value = true;
+  }
+};
+
+const reloadApp = () => {
+  window.location.reload(true);
+};
+
 const cargarConfiguracion = async () => {
   try {
     const res = await api.getConfig();
     if (res.data) {
+      // Check for updates
+      if (res.data.app_version) {
+        checkForUpdates(res.data.app_version);
+      }
+
       // 1. Nombre
       if (res.data.nombre) {
         nombreRestaurante.value = res.data.nombre;
@@ -232,7 +272,42 @@ const isCustomerFlow = ref(false);
 const usuarioStore = useUsuarioStore();
 const pedidoStore = usePedidoStore();
 
-// Cargar usuario guardado al montar
+// Detectar si estamos en rutas públicas
+const route = useRoute();
+
+const updatePublicState = () => {
+  const path = route.path;
+  
+  // Reset all first
+  isPublicMenu.value = false;
+  isPublicMesasQR.value = false;
+  isPublicPedidoStatus.value = false;
+  isCustomerFlow.value = false;
+  isPublicCuenta.value = false;
+  
+  if (path === '/menu') {
+    isPublicMenu.value = true;
+  } else if (path.startsWith('/pedido/') && path.endsWith('/status')) {
+    isPublicPedidoStatus.value = true;
+  } else if (path.startsWith('/mesa/') && !path.includes('/welcome') && !path.includes('/menu') && !path.includes('/status')) {
+     // Legacy check, might not be needed if all new flows are under /mesa/:id/...
+     isPublicPedidoStatus.value = false; 
+  } else if (path.startsWith('/mesa/')) {
+     isCustomerFlow.value = true;
+  } else if (path === '/mesas-qr') {
+    isPublicMesasQR.value = true;
+  } else if (path.startsWith('/cuenta/')) {      
+    isPublicCuenta.value = true;
+  }
+};
+
+// Watch for route changes
+watch(() => route.path, () => {
+  updatePublicState();
+});
+
+let updateInterval;
+
 onMounted(() => {
   usuarioStore.cargarUsuarioGuardado();
   pedidoStore.iniciarRealTime(); // Iniciar listeners de Socket.io
@@ -253,31 +328,32 @@ onMounted(() => {
   
   socket.on('connect', () => {
     isConnected.value = true;
+    cargarConfiguracion(); // Re-check config/version on reconnect
   });
   
   socket.on('disconnect', () => {
     isConnected.value = false;
   });
 
-  // Detectar si estamos en rutas públicas
-  const path = window.location.pathname;
-  if (path === '/menu') {
-    isPublicMenu.value = true;
-  } else if (path.startsWith('/pedido/') && path.endsWith('/status')) {
-    isPublicPedidoStatus.value = true;
-  } else if (path.startsWith('/mesa/') && !path.includes('/welcome') && !path.includes('/menu') && !path.includes('/status')) {
-     isPublicPedidoStatus.value = false; 
-  } else if (path.startsWith('/mesa/')) {
-     isCustomerFlow.value = true;
-  } else if (path === '/mesas-qr') {
-    isPublicMesasQR.value = true;
-  } else if (path.startsWith('/cuenta/')) {      
-    isPublicCuenta.value = true;
-  }
+  // Poll for updates every 5 minutes
+  updateInterval = setInterval(() => {
+    cargarConfiguracion();
+  }, 5 * 60 * 1000);
+
+  // Check on visibility change (when tab becomes active)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      cargarConfiguracion();
+    }
+  });
+
+  // Initial check
+  updatePublicState();
 });
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside);
+  if (updateInterval) clearInterval(updateInterval);
 });
 
 const logout = () => {
@@ -350,6 +426,86 @@ body {
   flex-direction: column;
   min-height: 100vh;
   background-color: var(--bg-color);
+  position: relative; /* For fixed banner */
+}
+
+/* Update Banner Styles */
+.update-banner {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card-bg);
+  border: 1px solid var(--primary-color);
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  z-index: 9999;
+  min-width: 320px;
+  justify-content: space-between;
+}
+
+.update-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.update-icon {
+  color: var(--primary-color);
+}
+
+.update-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.update-text strong {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.update-text span {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.btn-refresh-app {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.btn-refresh-app:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.icon-spin-hover:hover {
+  animation: spin 1s linear infinite;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translate(-50%, 100%);
+  opacity: 0;
+  bottom: -20px;
 }
 
 .navbar {

@@ -112,7 +112,7 @@ onMounted(() => {
 <style scoped>
 .customer-menu {
   padding-bottom: 100px; /* Space for FAB */
-  background: #f8fafc;
+  background: var(--customer-bg-primary);
   min-height: 100vh;
 }
 
@@ -120,15 +120,15 @@ onMounted(() => {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: white;
+  background: var(--customer-surface);
   padding: 1rem;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px var(--customer-shadow);
 }
 
 .search-bar {
   display: flex;
   align-items: center;
-  background: #f1f5f9;
+  background: var(--customer-bg-tertiary);
   border-radius: 12px;
   padding: 0.8rem 1rem;
   margin-bottom: 1rem;
@@ -145,6 +145,7 @@ onMounted(() => {
   width: 100%;
   font-size: 1rem;
   outline: none;
+  color: var(--customer-text-primary);
 }
 
 .categories-scroll {
@@ -162,18 +163,18 @@ onMounted(() => {
 .categories-scroll button {
   padding: 0.6rem 1.2rem;
   border-radius: 20px;
-  border: 1px solid #e2e8f0;
-  background: white;
-  color: #64748b;
+  border: 1px solid var(--customer-border);
+  background: var(--customer-surface);
+  color: var(--customer-text-secondary);
   font-weight: 600;
   white-space: nowrap;
   transition: all 0.2s;
 }
 
 .categories-scroll button.active {
-  background: var(--primary-color, #ff6b6b);
+  background: var(--theme-color, #ff6b6b);
   color: white;
-  border-color: var(--primary-color, #ff6b6b);
+  border-color: var(--theme-color, #ff6b6b);
   box-shadow: 0 4px 10px rgba(255, 107, 107, 0.3);
 }
 
@@ -185,7 +186,7 @@ onMounted(() => {
   font-size: 1.4rem;
   font-weight: 800;
   margin: 1.5rem 0 1rem;
-  color: #1e293b;
+  color: var(--customer-text-primary);
 }
 
 .items-container {
@@ -203,8 +204,8 @@ onMounted(() => {
 .spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid var(--primary-color, #ff6b6b);
+  border: 4px solid var(--customer-border);
+  border-top: 4px solid var(--theme-color, #ff6b6b);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }

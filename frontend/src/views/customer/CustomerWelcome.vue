@@ -48,12 +48,13 @@ const startOrder = () => {
   height: 100vh;
   padding: 2rem;
   text-align: center;
-  background: linear-gradient(135deg, var(--primary-color, #ff6b6b) 0%, var(--primary-dark, #ee5253) 100%);
+  background: linear-gradient(135deg, var(--theme-color, #ff6b6b) 0%, var(--background-color, #ee5253) 100%);
   color: white;
 }
 
 .welcome-content {
-  width: 100%;
+  width: 100%
+;
   max-width: 400px;
   animation: slideUp 0.6s ease-out;
 }
@@ -98,7 +99,7 @@ h1 {
   width: 100%;
   padding: 1.2rem;
   background: white;
-  color: var(--primary-color, #ff6b6b);
+  color: var(--theme-color, #ff6b6b);
   border: none;
   border-radius: 16px;
   font-size: 1.2rem;

@@ -159,8 +159,8 @@
 /* Editable Inputs in List */
 .editable-input {
     width: 100%;
-    border: 1px solid transparent;
-    background: transparent;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
     padding: 8px;
     border-radius: 6px;
     font-size: 14px;
@@ -175,11 +175,11 @@
 
 .editable-input:hover {
     background: var(--bg-secondary);
-    border-color: var(--border-color);
+    border-color: var(--theme-color, #f97316);
 }
 
 .editable-input:focus {
-    background: var(--card-bg);
+    background: var(--bg-secondary);
     border-color: var(--theme-color, #f97316);
     outline: none;
     box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.1);
@@ -206,7 +206,7 @@
 }
 
 .btn-icon.delete:hover {
-    background: #fecaca !important;
+    background: var(--theme-color, #f97316) !important;
     transform: scale(1.1);
 }
 
