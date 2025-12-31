@@ -283,12 +283,33 @@ const cargarConfiguracion = async () => {
       staticVersion = versionRes.value.version;
     }
 
-    // Decide trigger update
-    // Priority: Newest version wins
-    if (staticVersion && staticVersion !== currentVersion) {
-      checkForUpdates(staticVersion);
-    } else if (serverVersion && serverVersion !== currentVersion) {
-      checkForUpdates(serverVersion);
+    // Semantic Version Comparison Helper
+    const compareVersions = (v1, v2) => {
+      if (!v1 || !v2) return 0;
+      const parts1 = v1.split('.').map(Number);
+      const parts2 = v2.split('.').map(Number);
+      for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+        const val1 = parts1[i] || 0;
+        const val2 = parts2[i] || 0;
+        if (val1 > val2) return 1;
+        if (val1 < val2) return -1;
+      }
+      return 0;
+    };
+
+    // Determine the newest target version (Remote vs Static)
+    let targetVersion = null;
+    
+    if (serverVersion && staticVersion) {
+      // Pick the highest version between backend and static file
+      targetVersion = compareVersions(serverVersion, staticVersion) > 0 ? serverVersion : staticVersion;
+    } else {
+      targetVersion = serverVersion || staticVersion;
+    }
+
+    // Trigger update ONLY if target is strictly newer than current
+    if (targetVersion && compareVersions(targetVersion, currentVersion) > 0) {
+      checkForUpdates(targetVersion);
     }
 
   } catch (err) {
