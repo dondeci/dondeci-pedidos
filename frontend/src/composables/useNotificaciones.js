@@ -1,8 +1,11 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import api from '../api';
 import socket from '../socket';
+import { useToast } from '@/composables/useToast';
+import { useI18n } from 'vue-i18n'; // Import i18n
 
 export function useNotificaciones(rol) {
+    const { t } = useI18n(); // Init i18n
     const notificaciones = ref([]);
     // The `ultimaVerificacion` ref was removed in the provided diff, but not explicitly.
     // Assuming it's intended to be removed as it's not used in the new logic.
@@ -54,50 +57,39 @@ export function useNotificaciones(rol) {
         }
     };
 
+    // Integración con Toasts
+    const { addToast, success, info, warning } = useToast();
+
     // Mostrar notificación
     const mostrarNotificacion = (id, titulo, tipo = 'info') => {
         const cerradas = getNotificacionesCerradas();
+        // Evitar duplicados recientes (persistencia local)
         if (cerradas.includes(id)) return;
 
-        const existe = notificaciones.value.some(n => n.id === id);
-        if (existe) return;
-
-        const notif = {
-            id,
-            titulo,
-            tipo,
-            timestamp: new Date()
-        };
-
-        notificaciones.value.push(notif);
-        console.log(`🔔 ${tipo.toUpperCase()}: ${titulo}`);
-
+        // Reproducir efectos in-app independentes del Toast
         reproducirSonido();
-
         try {
-            if (navigator.vibrate) {
-                navigator.vibrate([100, 50, 100]);
-            }
-        } catch (err) {
-            // Ignorar error de vibración
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        } catch (e) { }
+
+        // Disparar Toast Visual
+        // Mapear tipos legacy a tipos de toast
+        if (tipo === 'listo' || tipo === 'success') {
+            success(titulo);
+        } else if (tipo === 'warning' || tipo === 'alerta') {
+            warning(titulo);
+        } else if (tipo === 'nuevo' || tipo === 'pago') {
+            // Personalizamos el icono/color para 'nuevo' (azul/info) y 'pago' (verde/success)
+            if (tipo === 'pago') success(titulo);
+            else info(titulo);
+        } else {
+            info(titulo);
         }
 
-        // Auto-cerrar después de 3 segundos
-        setTimeout(() => {
-            cerrarNotificacion(id);
-        }, 3000);
-
-        // ✅ MODIFICADO: Ya no mostramos notificación nativa aquí para evitar duplicidad
-        // con las Push Notifications del Service Worker.
-        /* 
-        if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('🍽️ Restaurante POS', {
-                body: titulo,
-                icon: '/favicon.ico',
-                badge: '/favicon.ico'
-            });
-        }
-        */
+        // Marcamos como "vista" en el historial local para no repetir el sonido/vibración 
+        // para el MISMO evento si llega socket repetido, aunque el toast maneja su propia unicidad visual
+        // Pero para lógica de negocio antigua, mejor prevenir spam.
+        marcarComoCerrada(id);
     };
 
     // Cerrar notificación manualmente
@@ -117,7 +109,7 @@ export function useNotificaciones(rol) {
                     pedidosNuevos.forEach(pedido => {
                         mostrarNotificacion(
                             `pedido-${pedido.id}-nuevo`,
-                            `🆕 Mesa ${pedido.mesa_numero}: Nuevo pedido (${pedido.items_count} items)`,
+                            t('notifications.new_order', { table: pedido.mesa_numero, count: pedido.items_count }),
                             'nuevo'
                         );
                     });
@@ -131,7 +123,7 @@ export function useNotificaciones(rol) {
                     pedidosListos.forEach(pedido => {
                         mostrarNotificacion(
                             `pedido-${pedido.id}-listo`,
-                            `✅ Mesa ${pedido.mesa_numero}: ¡Pedido LISTO! 🎉`,
+                            t('notifications.order_ready', { table: pedido.mesa_numero }),
                             'listo'
                         );
                     });
@@ -145,7 +137,7 @@ export function useNotificaciones(rol) {
                     pedidosListosPagar.forEach(pedido => {
                         mostrarNotificacion(
                             `pedido-${pedido.id}-pago`,
-                            `💰 Mesa ${pedido.mesa_numero}: Listo para pagar ($${pedido.total})`,
+                            t('notifications.ready_to_pay', { table: pedido.mesa_numero, total: '$' + pedido.total }),
                             'pago'
                         );
                     });
@@ -168,9 +160,35 @@ export function useNotificaciones(rol) {
             socket.on('nuevo_pedido', (pedido) => {
                 mostrarNotificacion(
                     `pedido-${pedido.id}-nuevo`,
-                    `🆕 Mesa ${pedido.mesa_numero}: Nuevo pedido (${pedido.items_count} items)`,
+                    t('notifications.new_order', { table: pedido.mesa_numero, count: pedido.items_count }),
                     'nuevo'
                 );
+            });
+
+            // ✅ NUEVO: Notificar al cocinero si editan un pedido (agregan items)
+            // ✅ NUEVO: Notificar al cocinero si editan un pedido (agregan items)
+            // Lógica: Si el evento trae 'mesa_numero', es una adición de items (POST /).
+            // Si NO trae, es un cambio de estado interno (PUT start/complete) que debemos ignorar.
+            socket.on('pedido_actualizado', (data) => {
+                if (data.mesa_numero) {
+                    mostrarNotificacion(
+                        `pedido-${data.id}-update-${Date.now()}`,
+                        t('notifications.order_updated', { table: data.mesa_numero }),
+                        'info'
+                    );
+                }
+            });
+
+            // ✅ NUEVO: Soporte explícito para evento de edición
+            socket.on('pedido_editado', (data) => {
+                api.getPedido(data.id).then(res => {
+                    const p = res.data;
+                    mostrarNotificacion(
+                        `pedido-${p.id}-edit-${Date.now()}`,
+                        t('notifications.order_updated', { table: p.mesa_numero }),
+                        'info'
+                    );
+                });
             });
         }
         else if (rol === 'mesero') {
@@ -183,7 +201,7 @@ export function useNotificaciones(rol) {
                 if (usuario.id && String(data.mesero_id) === String(usuario.id)) {
                     mostrarNotificacion(
                         `cuenta-${data.pedido_id}`, // ID único
-                        `💳 Mesa ${data.mesa_numero}: Solicitan la cuenta`, // Mensaje
+                        t('notifications.account_requested', { table: data.mesa_numero }),
                         'info'
                     );
                 }
@@ -197,7 +215,7 @@ export function useNotificaciones(rol) {
                 if (usuario.id && data.mesero_id === usuario.id && !data.es_directo) {
                     mostrarNotificacion(
                         `item_listo_${data.item_id}`,
-                        `✅ ${data.item_nombre} listo (Mesa ${data.mesa_numero})`,
+                        t('notifications.item_ready', { item: data.item_nombre, table: data.mesa_numero }),
                         'success'
                     );
                 }
@@ -209,7 +227,7 @@ export function useNotificaciones(rol) {
                         const p = res.data;
                         mostrarNotificacion(
                             `pedido-${id}-listo`,
-                            `✅ Mesa ${p.mesa_numero}: ¡Pedido LISTO! 🎉`,
+                            t('notifications.order_ready', { table: p.mesa_numero }),
                             'listo'
                         );
                     });
@@ -223,7 +241,7 @@ export function useNotificaciones(rol) {
                         const p = res.data;
                         mostrarNotificacion(
                             `pedido-${id}-pago`,
-                            `💰 Mesa ${p.mesa_numero}: Listo para pagar ($${p.total})`,
+                            t('notifications.ready_to_pay', { table: p.mesa_numero, total: '$' + p.total }),
                             'pago'
                         );
                     });

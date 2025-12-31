@@ -27,19 +27,7 @@
 
       <template v-else>
         <!-- Notificaciones -->
-        <div v-if="notificaciones.length > 0" class="notificaciones-container">
-          <transition-group name="notification">
-            <div v-for="notif in notificaciones" :key="notif.id" :class="['notificacion', `notif-${notif.tipo}`]">
-                <div class="notif-content">
-                  <Bell :size="16" v-if="notif.tipo === 'info'" />
-                  <AlertTriangle :size="16" v-else-if="notif.tipo === 'warning'" />
-                  <CheckCircle :size="16" v-else />
-                  <span>{{ notif.titulo }}</span>
-                </div>
-                <button @click="cerrarNotificacion(notif.id)" class="btn-cerrar-notif"><X :size="16" /></button>
-            </div>
-          </transition-group>
-        </div>
+        <!-- Notificaciones (Legacy removed - handled by Global Toasts) -->
 
         <!-- Selector de Mesa -->
         <div class="section tables-section">

@@ -318,12 +318,15 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useToast } from '@/composables/useToast'; 
 import { 
   Search, FileText, Plus, PlusCircle, X, Type, Tag, DollarSign, Clock, Upload, 
   Box, Coffee, ChevronDown, Eye, EyeOff, Trash2, Image, ChefHat, Package 
 } from 'lucide-vue-next';
 import api from '../api';
 const { t } = useI18n();
+const { success, error: showError } = useToast();
+
 const props = defineProps({
   menuItems: Array,
   categories: Array
@@ -386,7 +389,7 @@ const crearItem = async () => {
     emit('refresh');
   } catch (err) {
     console.error('Error:', err);
-    alert('Error al crear item');
+    showError(t('editor.error_creating_item') || 'Error al crear item');
   }
 };
 const actualizarItem = async (item) => {
@@ -436,7 +439,7 @@ const subirImagenItem = async (event) => {
     newItem.value.image_url = res.data.url;
   } catch (err) {
     console.error('Error:', err);
-    alert('Error subiendo imagen');
+    showError(t('editor.error_uploading_image') || 'Error subiendo imagen');
   } finally {
     subiendoImagen.value = false;
   }
@@ -502,7 +505,7 @@ const saveRecipe = async () => {
     emit('refresh');
   } catch (err) {
     console.error('Error:', err);
-    alert('Error guardando receta');
+    showError(t('editor.error_saving_recipe') || 'Error guardando receta');
   }
 };
 const getIngredientUnit = (inventoryItemId) => {

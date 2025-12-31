@@ -470,5 +470,13 @@
             "invalid_qty": "Cantidad inválida",
             "stock_error": "Error actualizando stock"
         }
+    },
+    "notifications": {
+        "new_order": "Mesa {table}: Nuevo pedido ({count} items)",
+        "order_ready": "Mesa {table}: ¡Pedido LISTO!",
+        "ready_to_pay": "Mesa {table}: Listo para pagar ({total})",
+        "order_updated": "Mesa {table}: Pedido actualizado",
+        "item_ready": "{item} listo (Mesa {table})",
+        "account_requested": "Mesa {table}: Solicitan la cuenta"
     }
 }

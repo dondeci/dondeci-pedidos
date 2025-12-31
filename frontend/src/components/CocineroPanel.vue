@@ -213,9 +213,7 @@
     </div>
   </div>
 
-  <div class="notificaciones-container">
-     <!-- Existing notifications -->
-  </div>
+
 </template>
 
 <script setup>

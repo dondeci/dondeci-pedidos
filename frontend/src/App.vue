@@ -137,6 +137,9 @@
         </button>
       </div>
     </transition>
+    
+    <!-- ✅ Global Toast Notifications -->
+    <ToastContainer />
   </div>
 </template>
 
@@ -150,6 +153,7 @@ import MeseroPanel from './components/MeseroPanel.vue';
 import CocineroPanel from './components/CocineroPanel.vue';
 import CajaPanel from './components/CajaPanel.vue';
 import AdminPanel from './components/AdminPanel.vue';
+import ToastContainer from './components/common/ToastContainer.vue';
 import MesasQR from './components/MesasQR.vue';
 import MenuView from './components/MenuView.vue';
 import PedidoStatus from './components/PedidoStatus.vue';

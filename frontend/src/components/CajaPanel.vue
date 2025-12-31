@@ -284,6 +284,7 @@
 import { ref, onMounted, computed, onUnmounted } from 'vue';
 import { useUsuarioStore } from '../stores/usuarioStore';
 import { usePedidoStore } from '../stores/pedidoStore';
+import { useNotificaciones } from '../composables/useNotificaciones';
 import CajaPaymentForm from './CajaPaymentForm.vue';
 import api from '../api';
 import socket from '../socket';
@@ -297,6 +298,8 @@ import {
 const usuarioStore = useUsuarioStore();
 const pedidoStore = usePedidoStore(); // Usamos el store para mantener consistencia si se quiere
 const { t } = useI18n(); // Uso de i18n
+// Inicializar notificaciones para rol cajero/facturero
+const { notificaciones } = useNotificaciones('facturero'); 
 const loading = ref(false);
 
 const historialPagos = ref([]);

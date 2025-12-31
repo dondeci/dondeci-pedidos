@@ -469,5 +469,13 @@
             "invalid_qty": "Invalid quantity",
             "stock_error": "Error updating stock"
         }
+    },
+    "notifications": {
+        "new_order": "Table {table}: New order ({count} items)",
+        "order_ready": "Table {table}: Order READY!",
+        "ready_to_pay": "Table {table}: Ready to pay ({total})",
+        "order_updated": "Table {table}: Order updated",
+        "item_ready": "{item} ready (Table {table})",
+        "account_requested": "Table {table}: Bill requested"
     }
 }
