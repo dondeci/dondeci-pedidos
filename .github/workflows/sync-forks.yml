@@ -23,10 +23,9 @@ jobs:
         with:
           source_repo: ${{ github.repository }}
           source_branch: ${{ github.ref_name }}
-          destination_repo: dondeci/dondeci-pedidos
+          # Auth via Token embedded in URL
+          destination_repo: "https://${{ secrets.GH_PAT_DONDECI }}@github.com/dondeci/dondeci-pedidos.git"
           destination_branch: ${{ github.ref_name }}
-          # Usa un secreto específico para este repo si quieres
-          destination_token: ${{ secrets.GH_PAT_DONDECI }} 
 
       # 2. DemoChris77
       - name: Sync to DemoChris77
@@ -35,9 +34,8 @@ jobs:
         with:
           source_repo: ${{ github.repository }}
           source_branch: ${{ github.ref_name }}
-          destination_repo: demochris77/restaurante-pedidos
+          # Auth via Token embedded in URL
+          destination_repo: "https://${{ secrets.GH_PAT_CHRIS }}@github.com/demochris77/restaurante-pedidos.git"
           destination_branch: ${{ github.ref_name }}
-          # Y otro diferente para este
-          destination_token: ${{ secrets.GH_PAT_CHRIS }}
 
       # -----------------------------------------------------------------
