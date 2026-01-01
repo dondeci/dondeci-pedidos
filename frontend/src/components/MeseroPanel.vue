@@ -300,6 +300,16 @@
                   </button>
                   <button 
                     v-if="['nuevo', 'en_cocina'].includes(pedido.estado)"
+                    @click="iniciarCambioMesa(pedido)" 
+                    class="btn-edit"
+                    style="margin-left: 0.25rem;"
+                    title="Cambiar Mesa"
+                  >
+                    <ArrowLeftRight :size="16" />
+                  </button>
+
+                  <button 
+                    v-if="['nuevo', 'en_cocina'].includes(pedido.estado)"
                     @click="cancelarPedido(pedido.id)"
                     class="btn-cancel"
                     title="Cancelar"
@@ -607,7 +617,47 @@
     </div>
   </div>
 
+  <!-- Change Table Modal -->
+  <div v-if="mostrarCambioMesa" class="modal-overlay" @click.self="mostrarCambioMesa = false">
+    <div class="modal-content small-modal">
+        <div class="modal-header-clean">
+            <h3>{{ $t('waiter.change_table') }}</h3>
+            <button @click="mostrarCambioMesa = false" class="btn-close-clean"><X :size="20" /></button>
+        </div>
+        
+        <div class="modal-body-clean">
+            <p class="confirm-message">
+                {{ $t('waiter.change_table_prompt', { table: pedidoParaCambiarMesa?.mesa_numero }) }}
+            </p>
+            
+            <div class="table-selector-grid">
+                <button
+                    v-for="mesa in mesasDisponibles"
+                    :key="mesa"
+                    @click="nuevaMesaSeleccionada = mesa"
+                    :class="['table-btn', { 'selected': nuevaMesaSeleccionada === mesa }]"
+                >
+                    {{ mesa }}
+                </button>
+            </div>
+            
+            <div class="modal-actions-row" style="margin-top: 1.5rem;">
+                <button @click="mostrarCambioMesa = false" class="btn-secondary-action large">
+                    {{ $t('common.cancel') }}
+                </button>
+                <button 
+                    @click="confirmarCambioMesa" 
+                    class="btn-primary-action large success"
+                    :disabled="!nuevaMesaSeleccionada"
+                >
+                    {{ $t('common.confirm') }} <CheckCircle2 :size="18" />
+                </button>
+            </div>
+        </div>
+    </div>
   </div>
+</div>
+
 </template>
 
 <script setup>
@@ -624,7 +674,8 @@ import {
     ClipboardList, Printer, QrCode, RefreshCw, Bell, AlertTriangle, CheckCircle, 
     LayoutGrid, Lock, Utensils, Search, UtensilsCrossed, Clock, ShoppingCart, 
     Scissors, Trash2, Send, Loader2, Check, BellRing, CheckCircle2, CheckCheck, 
-    Layers, Eye, DollarSign, Activity, Coffee, Edit3, X, FileText, ArrowUp, ArrowDown 
+    Layers, Eye, DollarSign, Activity, Coffee, Edit3, X, FileText, ArrowUp, ArrowDown,
+    ArrowLeftRight
 } from 'lucide-vue-next';
 
 const { t } = useI18n();
@@ -659,6 +710,12 @@ const itemsParaAgregar = ref([]);
 const categoriaEdicion = ref('');
 const busquedaEdicion = ref(''); 
 const showScrollUpButton = ref(true);
+
+// Table Change State
+const mostrarCambioMesa = ref(false);
+const pedidoParaCambiarMesa = ref(null);
+const nuevaMesaSeleccionada = ref(null);
+const mesasDisponibles = ref([]);
 
 // Batch serve confirmation
 const mostrarConfirmacionServir = ref(false);
@@ -1125,11 +1182,45 @@ const confirmarListoPagar = async () => {
   }
 };
 
+const iniciarCambioMesa = async (pedido) => {
+    pedidoParaCambiarMesa.value = pedido;
+    nuevaMesaSeleccionada.value = null;
+    
+    // Obtener mesas configuradas del store
+    const todasLasMesas = pedidoStore.mesas.map(m => m.numero);
+    
+    // Obtener mesas ocupadas de los pedidos activos
+    const mesasOcupadas = pedidoStore.pedidos
+        .filter(p => p.estado !== 'pagado' && p.estado !== 'cancelado')
+        .map(p => Number(p.mesa_numero));
+        
+    // Filtrar mesas disponibles (existentes - ocupadas)
+    mesasDisponibles.value = todasLasMesas.filter(m => !mesasOcupadas.includes(Number(m)));
+    
+    mostrarCambioMesa.value = true;
+};
+
+const confirmarCambioMesa = async () => {
+    if (!pedidoParaCambiarMesa.value || !nuevaMesaSeleccionada.value) return;
+    
+    try {
+        await api.cambiarMesa(pedidoParaCambiarMesa.value.id, nuevaMesaSeleccionada.value);
+        mostrarNotificacion(`cambio-mesa-${pedidoParaCambiarMesa.value.id}`, t('waiter.table_changed'), 'success');
+        mostrarCambioMesa.value = false;
+        // La actualización vendrá por socket 'pedido_actualizado'
+    } catch (e) {
+        console.error(e);
+        alert(e.response?.data?.error || t('common.error'));
+    }
+};
+
 const verCuenta = (pedidoId) => {
   if (!pedidoId) return;
   // Navigate in same tab - CuentaView will detect mesero login and show back button to panel
   router.push(`/cuenta/${pedidoId}`);
 };
+
+
 
 const cancelarPedido = async (pedidoId) => {
   const pedido = pedidoStore.pedidos.find(p => p.id === pedidoId);

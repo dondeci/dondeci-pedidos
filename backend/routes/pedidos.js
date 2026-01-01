@@ -1498,4 +1498,57 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
+// PUT /api/pedidos/:id/mesa - Cambiar numero de mesa
+router.put('/:id/mesa', async (req, res) => {
+    const { id } = req.params;
+    const { nueva_mesa } = req.body;
+
+    if (!nueva_mesa) {
+        return res.status(400).json({ error: 'Número de mesa requerido' });
+    }
+
+    try {
+        // 1. Verificar si el pedido existe
+        const pedido = await getAsync('SELECT id, mesa_numero, estado FROM pedidos WHERE id = $1', [id]);
+        if (!pedido) {
+            return res.status(404).json({ error: 'Pedido no encontrado' });
+        }
+
+        // 2. Verificar si la mesa destino ya tiene un pedido activo
+        // Excluir estados finales: pagado, cerrado, cancelado
+        const mesaOcupada = await getAsync(`
+            SELECT id FROM pedidos 
+            WHERE mesa_numero = $1 
+            AND estado NOT IN ('pagado', 'cerrado', 'cancelado')
+            AND id != $2
+        `, [nueva_mesa, id]);
+
+        if (mesaOcupada) {
+            return res.status(400).json({ error: `La mesa ${nueva_mesa} ya tiene un pedido activo (ID: ${mesaOcupada.id})` });
+        }
+
+        // 3. (Opcional) Verificar si la mesa existe en la tabla de mesas, si usas esa tabla
+        // const mesaExiste = await getAsync('SELECT id FROM mesas WHERE numero = $1', [nueva_mesa]);
+        // if (!mesaExiste) ...
+
+        // 4. Actualizar la mesa
+        await runAsync('UPDATE pedidos SET mesa_numero = $1 WHERE id = $2', [nueva_mesa, id]);
+
+        console.log(`📋 Pedido ${id}: Mesa cambiada de ${pedido.mesa_numero} a ${nueva_mesa}`);
+
+        // 5. Emitir evento para actualizar paneles en tiempo real (Mesero, Caja, Cocina, etc)
+        // El frontend debe escuchar 'pedido_actualizado' o recargar
+        req.app.get('io').emit('pedido_actualizado', { id, mesa_numero: nueva_mesa });
+
+        // También emitir un evento específico si es necesario
+        req.app.get('io').emit('mesa_cambiada', { pedido_id: id, antigua: pedido.mesa_numero, nueva: nueva_mesa });
+
+        res.json({ message: 'Mesa actualizada correctamente', nueva_mesa });
+
+    } catch (error) {
+        console.error('Error cambiando mesa:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 export default router;

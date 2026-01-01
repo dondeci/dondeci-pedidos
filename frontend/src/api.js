@@ -147,6 +147,11 @@ export default {
     return api.put(`/pedidos/items/${id}/serve`);
   },
 
+  // Change table
+  cambiarMesa(pedidoId, nuevaMesa) {
+    return api.put(`/pedidos/${pedidoId}/mesa`, { nueva_mesa: nuevaMesa });
+  },
+
   // Batch Operations
   iniciarItemsBatch: (itemIds) => api.put('/pedidos/items/batch-start', { itemIds }),
   completarItemsBatch: (itemIds) => api.put('/pedidos/items/batch-complete', { itemIds }),

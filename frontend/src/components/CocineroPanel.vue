@@ -64,11 +64,18 @@
                     <User :size="14" /> {{ pedido.mesero || $t('common.unassigned') }}
                   </span>
                 </div>
-                <button
-                  @click="iniciarPedido(pedido.id)"
-                  class="btn-start-order">
-                  {{ $t('kitchen.start') }} <Play :size="16" />
-                </button>
+                <div class="header-actions-col">
+                  <button
+                    @click="iniciarPedido(pedido.id)"
+                    class="btn-receive-order">
+                    {{ $t('kitchen.receive') }} <Inbox :size="16" />
+                  </button>
+                  <button
+                    @click="iniciarTodoPedido(pedido)"
+                    class="btn-start-order success">
+                    {{ $t('kitchen.start_all') }} <Play :size="16" />
+                  </button>
+                </div>
               </div>
               
               <div class="items-list">
@@ -341,6 +348,32 @@ const iniciarPedido = async (pedidoId) => {
   }
 };
 
+// ✅ NUEVO: Iniciar todo (Mover a cocina + Iniciar todos los items)
+const iniciarTodoPedido = async (pedido) => {
+  if (!pedido.items || pedido.items.length === 0) return;
+
+  const itemIds = pedido.items.map(i => i.id);
+  loading.value = true;
+  
+  try {
+    // 1. Mover el pedido a "en_cocina"
+    await pedidoStore.actualizarEstadoPedido(pedido.id, 'en_cocina');
+    
+    // 2. Iniciar todos los items (Server batch)
+    await api.iniciarItemsBatch(itemIds);
+    
+    setTimeout(() => {
+        pedidoStore.cargarPedidosActivos();
+    }, 500);
+    
+  } catch (err) {
+    console.error('Error starting all:', err);
+    alert('Error al iniciar todo el pedido');
+  } finally {
+    loading.value = false;
+  }
+};
+
 const iniciarItem = async (itemId) => {
   try {
     await api.iniciarItem(itemId);
@@ -383,7 +416,7 @@ const iniciarMesa = async (mesa) => {
 
   // Show custom confirmation modal
   confirmacionBatchTitulo.value = t('kitchen.start_all');
-  confirmacionBatchMensaje.value = `¿Iniciar todos los items pendientes de la mesa ${mesa.mesa_numero}? (${itemsPendientes.length} items)`;
+  confirmacionBatchMensaje.value = t('kitchen.confirm_start_all', { count: itemsPendientes.length, table: mesa.mesa_numero });
   accionBatchPendiente.value = async () => {
     const itemIds = itemsPendientes.map(i => i.id);
     loading.value = true;
@@ -418,7 +451,7 @@ const completarMesa = async (mesa) => {
 
    // Show custom confirmation modal
    confirmacionBatchTitulo.value = t('kitchen.complete_all');
-   confirmacionBatchMensaje.value = `¿Marcar como LISTOS todos los items de la mesa ${mesa.mesa_numero}? (${itemsEnPrep.length} items)`;
+   confirmacionBatchMensaje.value = t('kitchen.confirm_complete_all', { count: itemsEnPrep.length, table: mesa.mesa_numero });
    accionBatchPendiente.value = async () => {
      const itemIds = itemsEnPrep.map(i => i.id);
      loading.value = true;

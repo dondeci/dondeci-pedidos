@@ -14,6 +14,7 @@
         "home": "Home",
         "yes": "Yes",
         "no": "No",
+        "confirm": "Confirm",
         "ok": "OK",
         "download_qr": "Download QR",
         "logout": "Logout",
@@ -70,23 +71,6 @@
         "cancelado": "Cancelled",
         "pendiente": "Pending",
         "en_preparacion": "In Preparation"
-    },
-    "kitchen": {
-        "title": "Kitchen Panel",
-        "new_orders": "New",
-        "cooking": "Cooking",
-        "start": "Start",
-        "complete": "Complete",
-        "served": "Served",
-        "wait_waiter": "Waiting for waiter...",
-        "empty_new": "No new orders",
-        "empty_cooking": "No orders cooking",
-        "item_pending": "Pending",
-        "item_cooking": "Cooking",
-        "item_ready": "Ready",
-        "item_served": "Served",
-        "start_all": "All",
-        "complete_all": "All"
     },
     "order_status": {
         "title": "Order Status",
@@ -247,6 +231,9 @@
         "alert_stock_low": "Only {count} units remaining",
         "alert_order_sent": "Order sent to kitchen",
         "alert_error_sending": "Error sending order",
+        "change_table": "Change Table",
+        "change_table_prompt": "Move order from table {table} to a new table?",
+        "table_changed": "Table changed successfully",
         "alert_marked_served": "Order marked as served",
         "alert_marked_pay_ready": "Order marked as ready to pay",
         "confirm_cancel": "Are you sure you want to cancel this order?\nData will not be deleted, but it will stop being active.",
@@ -484,6 +471,24 @@
             "invalid_qty": "Invalid quantity",
             "stock_error": "Error updating stock"
         }
+    },
+    "kitchen": {
+        "title": "Kitchen",
+        "new_orders": "New Orders",
+        "cooking": "Cooking",
+        "empty_new": "No new orders",
+        "empty_cooking": "No orders in preparation",
+        "start": "Start",
+        "receive": "Receive",
+        "start_all": "Start All",
+        "complete_all": "Complete All",
+        "complete": "Complete",
+        "item_pending": "Pending",
+        "item_ready": "Ready",
+        "item_served": "Served",
+        "wait_waiter": "Waiting Waiter",
+        "confirm_start_all": "Start all {count} pending items for table {table}?",
+        "confirm_complete_all": "Mark as READY all {count} items for table {table}?"
     },
     "notifications": {
         "new_order": "Table {table}: New order ({count} items)",

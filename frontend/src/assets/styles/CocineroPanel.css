@@ -47,6 +47,51 @@
     border-radius: 12px;
 }
 
+.header-actions-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 140px;
+}
+
+.btn-receive-order,
+.btn-start-order {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    width: 100%;
+}
+
+.btn-receive-order {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-start-order {
+    background: var(--k-primary);
+    color: white;
+}
+
+.btn-start-order.success {
+    background: var(--k-success);
+}
+
+.btn-receive-order:hover {
+    background: var(--border-color);
+}
+
+.btn-start-order:hover {
+    background: var(--k-primary-dark);
+}
+
 .panel-header h2 {
     font-size: 1.5rem;
     font-weight: 700;
@@ -753,6 +798,106 @@
 }
 
 /* Modal Styles for Confirmation */
+.modal-header-clean {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.modal-header-clean h3 {
+    margin: 0;
+    color: var(--k-text);
+}
+
+.btn-close-clean {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--k-secondary);
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    transition: background 0.2s;
+}
+
+.btn-close-clean:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.confirm-message {
+    margin-bottom: 2rem;
+    color: var(--k-text);
+    line-height: 1.5;
+    font-size: 1.05rem;
+}
+
+.modal-actions-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.btn-secondary-action,
+.btn-primary-action {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.95rem;
+}
+
+.btn-secondary-action {
+    background: var(--bg-secondary);
+    color: var(--k-text);
+    border: 1px solid var(--k-border);
+}
+
+.btn-primary-action {
+    background: var(--k-primary);
+    color: white;
+    /* Match Mesero Panel Shadow */
+    box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.3);
+}
+
+.btn-primary-action.success {
+    background-color: var(--k-success) !important;
+    background: var(--k-success) !important;
+    color: white !important;
+    box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.3);
+}
+
+/* SUPER SPECIFIC FORCE - NUCLEAR OPTION */
+body .modal-actions-row .btn-primary-action.success {
+    background-color: #22c55e !important;
+    background: #22c55e !important;
+    color: #ffffff !important;
+    border: 1px solid #16a34a !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.4) !important;
+}
+
+body .modal-actions-row .btn-primary-action.success:hover {
+    background-color: #16a34a !important;
+    background: #16a34a !important;
+}
+
+.btn-secondary-action:hover {
+    background: var(--k-border);
+}
+
+.large {
+    min-width: 100px;
+    justify-content: center;
+}
+
 .modal-header-clean {
     padding: 1.5rem;
     border-bottom: 1px solid var(--border-color);

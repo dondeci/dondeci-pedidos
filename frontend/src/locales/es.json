@@ -15,6 +15,7 @@
         "home": "Inicio",
         "yes": "Sí",
         "no": "No",
+        "confirm": "Confirmar",
         "ok": "Aceptar",
         "min": "min",
         "now": "Ahora",
@@ -70,23 +71,6 @@
         "cancelado": "Cancelado",
         "pendiente": "Pendiente",
         "en_preparacion": "En Preparación"
-    },
-    "kitchen": {
-        "title": "Panel de Cocina",
-        "new_orders": "Nuevos",
-        "cooking": "En preparación",
-        "start": "Iniciar",
-        "complete": "Completar",
-        "served": "Servido",
-        "wait_waiter": "Esperando mesero...",
-        "empty_new": "Sin pedidos nuevos",
-        "empty_cooking": "Sin pedidos en preparación",
-        "item_pending": "Pendiente",
-        "item_cooking": "Cocinando",
-        "item_ready": "Listo",
-        "item_served": "Servido",
-        "start_all": "Todo",
-        "complete_all": "Todo"
     },
     "order_status": {
         "title": "Estado de tu Pedido",
@@ -248,6 +232,9 @@
         "alert_order_sent": "Pedido enviado a cocina",
         "alert_error_sending": "Error al enviar pedido",
         "order_sent": "Pedido enviado correctamente",
+        "change_table": "Cambiar Mesa",
+        "change_table_prompt": "¿Mover pedido de la mesa {table} a una nueva mesa?",
+        "table_changed": "Mesa cambiada correctamente",
         "error_sending": "Error al enviar el pedido",
         "alert_marked_served": "Pedido marcado como servido",
         "alert_marked_pay_ready": "Pedido marcado como listo para pagar",
@@ -485,6 +472,24 @@
             "invalid_qty": "Cantidad inválida",
             "stock_error": "Error actualizando stock"
         }
+    },
+    "kitchen": {
+        "title": "Cocina",
+        "new_orders": "Nuevos Pedidos",
+        "cooking": "Cocinando",
+        "empty_new": "No hay pedidos nuevos",
+        "empty_cooking": "No hay pedidos en preparación",
+        "start": "Comenzar",
+        "receive": "Recibir",
+        "start_all": "Iniciar Todo",
+        "complete_all": "Completar Todo",
+        "complete": "Completar",
+        "item_pending": "Pendiente",
+        "item_ready": "Listo",
+        "item_served": "Servido",
+        "wait_waiter": "Esperando Mesero",
+        "confirm_start_all": "¿Iniciar los {count} items pendientes de la mesa {table}?",
+        "confirm_complete_all": "¿Marcar como LISTOS los {count} items de la mesa {table}?"
     },
     "notifications": {
         "new_order": "Mesa {table}: Nuevo pedido ({count} items)",
