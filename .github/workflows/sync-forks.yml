@@ -7,6 +7,9 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    # 🛑 IMPORTANTE: Esto evita el bucle infinito.
+    # Solo ejecuta este workflow si estamos en el repositorio ORIGINAL.
+    if: github.repository == 'C-Ford17/restaurante-pedidos'
     steps:
       - uses: actions/checkout@v3
         with:
