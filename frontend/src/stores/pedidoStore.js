@@ -222,21 +222,128 @@ export const usePedidoStore = defineStore('pedido', () => {
     };
 
     // ================= CLIENT CART (Customer) =================
-    const addToCart = (item) => {
-        // ✅ STOCK VALIDATION
-        if (item.usa_inventario && !item.es_directo) {
-            const stockDisponible = (item.stock_actual || 0) - (item.stock_reservado || 0);
-            // Calculate quantity already in cart
-            const inCart = cart.value
-                .filter(i => i.id === item.id)
-                .reduce((sum, i) => sum + i.quantity, 0);
+    // ✅ Helper to calculate potential usage of ingredients
+    const checkStockAvailability = (newItem, additionalQty = 1, customCart = null) => {
+        const currentCart = customCart || cart.value;
 
-            if (inCart + 1 > stockDisponible) {
-                // Optional: returning false or throwing to let UI handle it
-                // For now, we'll just return early and maybe the UI checks `canAdd`
-                console.warn('Stock limit reached for customer');
-                return false;
-            }
+        // If no inventory usage or is direct, use simple stock check
+        if (!newItem.usa_inventario) return true;
+
+        if (newItem.es_directo) {
+            const stockDisponible = (newItem.stock_actual || 0) - (newItem.stock_reservado || 0);
+            // Count quantity of THIS item in cart
+            const inCart = currentCart
+                .filter(i => i.id === newItem.id)
+                .reduce((sum, i) => sum + (i.quantity || i.cantidad || 0), 0);
+            return (inCart + additionalQty) <= stockDisponible;
+        }
+
+        // If it has recipe ingredients (complex stock), check shared usage
+        if (newItem.ingredients && newItem.ingredients.length > 0) {
+            // 1. Calculate TOTAL projected usage for each ingredient based on CURRENT CART
+            const projectedUsage = {};
+
+            // Iterate ALL items in cart to sum up usage
+            currentCart.forEach(cartItem => {
+                if (cartItem.ingredients) {
+                    cartItem.ingredients.forEach(ing => {
+                        if (!projectedUsage[ing.inventory_item_id]) projectedUsage[ing.inventory_item_id] = 0;
+                        const qtyRequired = ing.quantity_required || 0;
+                        const cartItemQty = cartItem.quantity || cartItem.cantidad || 0;
+                        projectedUsage[ing.inventory_item_id] += (qtyRequired * cartItemQty);
+                    });
+                }
+            });
+
+            // 2. Add usage ONLY for the new item we want to add
+            let possible = true;
+            newItem.ingredients.forEach(ing => {
+                const currentUsage = projectedUsage[ing.inventory_item_id] || 0;
+                const newUsage = (ing.quantity_required || 0) * additionalQty;
+
+                if ((currentUsage + newUsage) > ing.current_stock) {
+                    possible = false;
+                }
+            });
+
+            return possible;
+        }
+
+        // Fallback for non-recipe items (legacy behavior)
+        const stockDisponible = (newItem.stock_actual || 0) - (newItem.stock_reservado || 0);
+        const inCart = currentCart
+            .filter(i => i.id === newItem.id)
+            .reduce((sum, i) => sum + (i.quantity || i.cantidad || 0), 0);
+        return (inCart + additionalQty) <= stockDisponible;
+    };
+
+    // ✅ Helper to get actual remaining stock number
+    const getRealTimeStock = (item, customCart = null) => {
+        const currentCart = customCart || cart.value;
+
+        // 1. Simple Case
+        if (item.usa_inventario && item.es_directo) {
+            const stockDisponible = (item.stock_actual || 0) - (item.stock_reservado || 0);
+            const inCart = currentCart
+                .filter(i => i.id === item.id)
+                .reduce((sum, i) => sum + (i.quantity || i.cantidad || 0), 0);
+            return Math.max(0, stockDisponible - inCart);
+        }
+
+        // 2. Recipe Case
+        if (item.ingredients && item.ingredients.length > 0) {
+            // Calculate usage by OTHER items in cart
+            const projectedUsage = {};
+            currentCart.forEach(cartItem => {
+                if (cartItem.ingredients) {
+                    cartItem.ingredients.forEach(ing => {
+                        if (!projectedUsage[ing.inventory_item_id]) projectedUsage[ing.inventory_item_id] = 0;
+                        const qtyRequired = ing.quantity_required || 0;
+                        const cartItemQty = cartItem.quantity || cartItem.cantidad || 0;
+                        projectedUsage[ing.inventory_item_id] += (qtyRequired * cartItemQty);
+                    });
+                }
+            });
+
+            // Find limiting ingredient
+            let maxAddable = Infinity;
+
+            item.ingredients.forEach(ing => {
+                const currentUsage = projectedUsage[ing.inventory_item_id] || 0;
+                const remainingStock = ing.current_stock - currentUsage;
+                const qtyRequired = ing.quantity_required || 0;
+
+                if (qtyRequired > 0) {
+                    const possibleWithThisIng = Math.floor(remainingStock / qtyRequired);
+                    if (possibleWithThisIng < maxAddable) {
+                        maxAddable = possibleWithThisIng;
+                    }
+                }
+            });
+
+            if (maxAddable === Infinity) return (item.stock_actual || 0); // Fallback
+            return Math.max(0, maxAddable);
+        }
+
+        // 3. Fallback / No Inventory
+        if (!item.usa_inventario) return 9999;
+
+        // Simple stock fallback
+        const stockDisponible = (item.stock_actual || 0) - (item.stock_reservado || 0);
+        const inCart = currentCart
+            .filter(i => i.id === item.id)
+            .reduce((sum, i) => sum + (i.quantity || i.cantidad || 0), 0);
+        return Math.max(0, stockDisponible - inCart);
+    };
+
+
+
+
+    const addToCart = (item) => {
+        // ✅ SHARED STOCK VALIDATION
+        if (!checkStockAvailability(item, 1)) {
+            console.warn('Stock limit reached (Shared Ingredient)');
+            return false;
         }
 
         // Try to find existing item with same ID and SAME NOTES (empty initially)
@@ -346,6 +453,8 @@ export const usePedidoStore = defineStore('pedido', () => {
         splitCartItem,   // ✅ Export
         clearCart,
         cartTotal,
-        cartItemCount
+        cartItemCount,
+        checkStockAvailability, // ✅ Export
+        getRealTimeStock // ✅ Export
     };
 });

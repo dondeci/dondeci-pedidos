@@ -48,29 +48,25 @@
 <script setup>
 import { computed } from 'vue';
 import { Plus } from 'lucide-vue-next';
+import { usePedidoStore } from '@/stores/pedidoStore';
 
 const props = defineProps({
   item: {
     type: Object,
     required: true
   },
-  quantity: {
+  quantity: { // Used for badge display only now
     type: Number,
     default: 0
   }
 });
 
 const emit = defineEmits(['add']);
+const pedidoStore = usePedidoStore();
 
-// Stock Logic
-const stockDisponible = computed(() => {
-  if (!props.item.usa_inventario || props.item.es_directo) return 9999;
-  return (props.item.stock_actual || 0) - (props.item.stock_reservado || 0);
-});
-
-// ✅ Dynamic remaining stock (decreases as you add to cart)
+// ✅ Dynamic remaining stock (Already subtracts cart usage inside store check)
 const remainingStock = computed(() => {
-  return Math.max(0, stockDisponible.value - props.quantity);
+  return pedidoStore.getRealTimeStock(props.item);
 });
 
 const showStockCounter = computed(() => {
@@ -78,8 +74,10 @@ const showStockCounter = computed(() => {
 });
 
 const isSoldOut = computed(() => {
-   // Assuming 'no_disponible' state or calculated stock <= 0
-   return props.item.estado_inventario === 'no_disponible' || stockDisponible.value <= 0;
+   // Check strict availability
+   if (props.item.estado_inventario === 'no_disponible') return true;
+   // Also check calculated stock
+   return remainingStock.value <= 0;
 });
 
 const isLowStock = computed(() => {
@@ -88,7 +86,6 @@ const isLowStock = computed(() => {
 
 const canAdd = computed(() => {
   if (isSoldOut.value) return false;
-  // Check if adding 1 more would exceed stock based on REMAINING
   return remainingStock.value > 0;
 });
 

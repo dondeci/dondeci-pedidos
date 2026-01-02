@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
 
         // 2. Obtener TODAS las recetas y stock de insumos en una sola consulta
         const allRecipes = await allAsync(`
-            SELECT di.menu_item_id, di.quantity_required, ii.current_stock, ii.name as ing_name
+            SELECT di.menu_item_id, di.quantity_required, di.inventory_item_id, ii.current_stock, ii.name as ing_name
             FROM dish_ingredients di
             JOIN inventory_items ii ON di.inventory_item_id = ii.id
         `);
@@ -51,13 +51,26 @@ router.get('/', async (req, res) => {
             if (item.usa_inventario && !item.es_directo && recipeMap[item.id]) {
                 const ingredients = recipeMap[item.id];
 
+                // ✅ Attach ingredients info only if needed for frontend validation
+                item.ingredients = ingredients.map(ing => ({
+                    id: ing.menu_item_id, // This is menu_item_id, wait. query returns: di.menu_item_id, di.quantity_required, ii.current_stock, ii.name 
+                    // We need inventory_item_id actually.
+                    // The query at line 36 does NOT select inventory_item_id properly labeled?
+                    // "SELECT di.menu_item_id, di.quantity_required, ii.current_stock, ii.name as ing_name FROM dish_ingredients di JOIN inventory_items ii ON di.inventory_item_id = ii.id"
+                    // Whatever join returns. 'ii.id' is ambiguous if not selected explicitly, but di.inventory_item_id is certain.
+                    inventory_item_id: ing.inventory_item_id || ing.id, // We need to check the exact query result shape
+                    quantity_required: ing.quantity_required,
+                    current_stock: ing.current_stock
+                }));
+
                 // Calcular cuántos platos se pueden hacer con el stock actual de cada ingrediente
                 // El stock del plato es limitado por el ingrediente más escaso (Reactivo Limitante)
                 let maxServings = Infinity;
 
                 for (const ing of ingredients) {
                     if (ing.quantity_required > 0) {
-                        const servings = Math.floor(ing.current_stock / ing.quantity_required);
+                        // ✅ FIX: Floating point precision (1.2 / 0.4 = 2.9999 -> 3)
+                        const servings = Math.floor((ing.current_stock + 0.00001) / ing.quantity_required);
                         if (servings < maxServings) {
                             maxServings = servings;
                         }

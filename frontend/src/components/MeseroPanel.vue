@@ -131,7 +131,22 @@
             <div class="summary-item" v-for="(item, idx) in pedidoEnProgreso" :key="idx">
               <div class="item-row-main">
                  <div class="item-qty-name">
-                    <span class="cantidad">{{ item.cantidad }}x</span>
+                    <div class="qty-controls">
+                        <button 
+                            @click="disminuirCantidad(idx)" 
+                            class="btn-qty"
+                        >
+                            <Minus :size="14" />
+                        </button>
+                        <span class="cantidad-val">{{ item.cantidad }}</span>
+                        <button 
+                            @click="incrementarCantidad(item)" 
+                            class="btn-qty"
+                            :disabled="!canAddMain(item)"
+                        >
+                            <Plus :size="14" />
+                        </button>
+                    </div>
                     <span class="nombre">{{ item.nombre }}</span>
                  </div>
                  <span class="precio">${{ (item.cantidad * item.precio).toFixed(2) }}</span>
@@ -675,7 +690,7 @@ import {
     LayoutGrid, Lock, Utensils, Search, UtensilsCrossed, Clock, ShoppingCart, 
     Scissors, Trash2, Send, Loader2, Check, BellRing, CheckCircle2, CheckCheck, 
     Layers, Eye, DollarSign, Activity, Coffee, Edit3, X, FileText, ArrowUp, ArrowDown,
-    ArrowLeftRight
+    ArrowLeftRight, Plus, Minus
 } from 'lucide-vue-next';
 
 const { t } = useI18n();
@@ -763,24 +778,36 @@ const getStockTotal = (item) => {
   return (item.stock_actual || 0) - (item.stock_reservado || 0);
 };
 
+// Use Store Logic for REAL consistency
 const getRemainingStockMain = (item) => {
-  const total = getStockTotal(item);
-  const inCart = pedidoEnProgreso.value
-    .filter(p => p.id === item.id)
-    .reduce((sum, p) => sum + p.cantidad, 0);
-  return Math.max(0, total - inCart);
+  return pedidoStore.getRealTimeStock(item, pedidoEnProgreso.value);
 };
 
 const getRemainingStockEdit = (item) => {
-  const total = getStockTotal(item);
-  const inPendings = itemsParaAgregar.value
-    .filter(p => p.id === item.id)
-    .reduce((sum, p) => sum + p.cantidad, 0);
-  return Math.max(0, total - inPendings);
+  // Combine current items in edit + pending items to add
+  // BUT: 'pedidoEditando.items' are ALREADY in the order, so they consume stock?
+  // Actually, 'pedidoEditando' items are existing items. 
+  // If we are adding NEW items, we need to check if we can add them on top of existing ones.
+  // The 'itemsParaAgregar' are the ones we need to validate.
+  // AND we must consider the items *already* in the order (pedidoEditando.items) as consuming stock too?
+  // Yes, theoretically. The store stock check doesn't know about *active orders* unless they are committed to DB (stock_actual).
+  // Committed orders reduce 'stock_actual'.
+  // 'itemsParaAgregar' are NOT committed. 'pedidoEditando.items' ARE committed (so they are already deducted from stock_actual).
+  // So we only need to validate 'itemsParaAgregar' against 'stock_actual'.
+  // EXCEPT: if we are adding MORE of an item that is already in 'itemsParaAgregar'.
+  
+  return pedidoStore.getRealTimeStock(item, itemsParaAgregar.value);
 };
 
-const canAddMain = (item) => item.estado_inventario !== 'no_disponible' && getRemainingStockMain(item) > 0;
-const canAddEdit = (item) => item.estado_inventario !== 'no_disponible' && getRemainingStockEdit(item) > 0;
+// Use Store Validation
+const canAddMain = (item) => {
+    // Check if we can add 1 more
+    return pedidoStore.checkStockAvailability(item, 1, pedidoEnProgreso.value);
+};
+
+const canAddEdit = (item) => {
+    return pedidoStore.checkStockAvailability(item, 1, itemsParaAgregar.value);
+};
 
 const isTableBlocked = (mesa) => {
   if (!mesa.is_blockable) return false;
@@ -1026,6 +1053,23 @@ const misPedidosServidos = computed(() => {
 });
 
 // WATCHERS & METHODS
+const incrementarCantidad = (item) => {
+    // Re-use logic: 'item' is from pedidoEnProgreso, so we look it up by ID to check stock against MAIN menu item definition?
+    // Actually 'canAddMain' takes a menu item.
+    // The item in 'pedidoEnProgreso' has same properties usually.
+    // Let's just call 'agregarItemAlPedido' passing the item, it handles grouping and validation.
+    agregarItemAlPedido(item);
+};
+
+const disminuirCantidad = (idx) => {
+    const item = pedidoEnProgreso.value[idx];
+    if (item.cantidad > 1) {
+        item.cantidad--;
+    } else {
+        removerItem(idx);
+    }
+};
+
 const agregarItemAlPedido = (item) => {
   if (!canAddMain(item)) return; // ✅ Robust check
   
@@ -1447,3 +1491,71 @@ onMounted(() => {
 </script>
 
 <style src="../assets/styles/MeseroPanel.css" scoped></style>
+
+<style scoped>
+/* NEW STYLES for Layout */
+.item-row-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+/* Modifying item-qty-name to accommodate controls layout */
+.item-qty-name {
+    display: flex;
+    flex-direction: column; 
+    gap: 4px;
+    flex: 1; /* Allow it to take space */
+}
+
+/* Existing styles fallback or overrides */
+.precio {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* New Quantity Control Styles */
+.qty-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 2px;
+    width: fit-content;
+}
+
+.btn-qty {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 0;
+    transition: all 0.1s;
+}
+
+.btn-qty:active {
+    transform: scale(0.95);
+}
+
+.btn-qty:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--bg-tertiary);
+}
+
+.cantidad-val {
+    font-weight: 700;
+    min-width: 20px;
+    text-align: center;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+</style>

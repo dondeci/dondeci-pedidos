@@ -2,6 +2,14 @@
   <div class="customer-menu">
     <!-- Header -->
     <header class="menu-header">
+      <!-- Active Order Back Button -->
+      <div v-if="hasActiveOrder" class="active-order-banner">
+        <button @click="goToStatus" class="btn-back-status">
+          <span class="icon">⬅️</span>
+          <span>{{ $t('status.order_status_btn') || 'Ver Pedido en Curso' }}</span>
+        </button>
+      </div>
+
       <div class="search-bar">
         <span class="search-icon">🔍</span>
         <input 
@@ -50,30 +58,32 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { usePedidoStore } from '@/stores/pedidoStore';
+import api from '@/api';
 import ProductCard from '@/components/customer/ProductCard.vue';
 import CartFloatingButton from '@/components/customer/CartFloatingButton.vue';
 
+const route = useRoute();
+const router = useRouter();
 const pedidoStore = usePedidoStore();
 const searchQuery = ref('');
 const selectedCategory = ref('Todos');
+const hasActiveOrder = ref(false);
 
+const tableId = computed(() => route.params.tableId);
 const loading = computed(() => pedidoStore.loading);
 const categorias = computed(() => ['Todos', ...pedidoStore.categorias]);
 
 const filteredCategories = computed(() => {
   if (selectedCategory.value !== 'Todos') return [selectedCategory.value];
   if (searchQuery.value) {
-    // If searching, show all categories that have matching items
     return pedidoStore.categorias.filter(cat => getItemsByCategory(cat).length > 0);
   }
   return pedidoStore.categorias;
 });
 
 const getItemsByCategory = (cat) => {
-  // ✅ FIX: Use 'disponible' instead of 'menu_activo'
-  // Also check if 'disponible' is string "true" or boolean true if using SQLite/Postgres weirdness, 
-  // but mostly likely boolean. 'item.disponible' should be truthy.
   let items = pedidoStore.menu.filter(item => item.categoria === cat && item.disponible);
   
   if (searchQuery.value) {
@@ -94,18 +104,32 @@ const getItemQuantity = (itemId) => {
 
 const handleAddItem = (item) => {
   pedidoStore.addToCart(item);
-  // Optional: Trigger a small haptic feedback or local animation here if needed
 };
 
-onMounted(() => {
+const goToStatus = () => {
+    router.push(`/mesa/${tableId.value}/status`);
+};
+
+onMounted(async () => {
   // Load menu if empty
   if (pedidoStore.menu.length === 0) {
     pedidoStore.cargarMenu();
-    // Assuming we don't need authentication to read the menu, otherwise token might be needed?
-    // User said "Start Order" -> "Menu", assuming public access or implicit session.
   }
-  // Start socket for real-time stock updates
   pedidoStore.iniciarRealTime(); 
+
+  // Check for active order
+  try {
+      const res = await api.getMesaPedidoActual(tableId.value);
+      if (res.data && res.data.pedido) {
+        // Show button only if order is NOT in final states
+        const estadosFinales = ['cancelado', 'pagado', 'cerrado'];
+        if (!estadosFinales.includes(res.data.pedido.estado)) {
+          hasActiveOrder.value = true;
+        }
+      }
+  } catch (e) {
+      // Ignore 404
+  }
 });
 </script>
 
@@ -123,6 +147,31 @@ onMounted(() => {
   background: var(--customer-surface);
   padding: 1rem;
   box-shadow: 0 4px 12px var(--customer-shadow);
+}
+
+.active-order-banner {
+    margin-bottom: 1rem;
+}
+
+.btn-back-status {
+    width: 100%;
+    background: var(--customer-bg-tertiary); /* Soft bg */
+    border: 1px solid var(--theme-color);
+    color: var(--theme-color);
+    padding: 0.8rem;
+    border-radius: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-back-status:active {
+    background: var(--theme-color);
+    color: white;
 }
 
 .search-bar {
@@ -147,6 +196,7 @@ onMounted(() => {
   outline: none;
   color: var(--customer-text-primary);
 }
+
 
 .categories-scroll {
   display: flex;

@@ -124,6 +124,18 @@
         </div>
       </div>
     </div>
+
+    <!-- Cancel Confirmation Modal -->
+    <div v-if="showCancelModal" class="modal-overlay">
+      <div class="modal-content">
+        <p class="modal-text">{{ $t('customer.confirm_cancel_text') || '¿Estás seguro de que deseas cancelar este item?' }}</p>
+        
+        <div class="modal-actions">
+          <button @click="showCancelModal = false" class="btn-cancel">{{ $t('common.no') }}</button>
+          <button @click="confirmCancel" class="btn-danger-confirm">{{ $t('common.yes_cancel') }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -197,6 +209,8 @@ const canModify = (status) => ['nuevo', 'pendiente'].includes(status);
 
 const editingItem = ref(null);
 const tempNote = ref('');
+const showCancelModal = ref(false);
+const itemToCancel = ref(null);
 
 const openNoteModal = (item) => {
   editingItem.value = item;
@@ -214,14 +228,36 @@ const saveNote = async () => {
   }
 };
 
-const cancelItem = async (item, orderId) => {
-  if (!confirm(t('waiter.confirm_cancel'))) return;
+const cancelItem = (item) => {
+  itemToCancel.value = item;
+  showCancelModal.value = true;
+};
+
+const confirmCancel = async () => {
+  if (!itemToCancel.value) return;
+  // If activeOrders has only 1 item (or fewer), deleting it will cancel the order
+  const orderId = activeOrders.value[0]?.id; // Assuming single active order context usually
+
   try {
-    await api.actualizarEstadoItem(item.id, 'cancelado');
-    // Refresh to update UI
-    cargarEstado();
+    // Try to delete item
+    // api.eliminarItemDePedido(pedidoId, itemId, confirm=false)
+    // We pass confirm=false initially. If backend says 409 (requires confirm), we might handle it, 
+    // but for Customer we decided to BLOCK if started.
+    
+    await api.eliminarItemDePedido(orderId, itemToCancel.value.id);
+    
+    // Refresh
+    await cargarEstado();
+    showCancelModal.value = false;
+    itemToCancel.value = null;
+    
   } catch (e) {
-    alert(t('common.error'));
+    if (e.response && e.response.status === 409) {
+        alert(t('customer.cannot_cancel_started') || 'No se puede cancelar un item que ya está en preparación.');
+    } else {
+        alert(t('common.error'));
+    }
+    showCancelModal.value = false; // Close anyway on error? Or keep open? Close is safer.
   }
 };
 
@@ -652,6 +688,15 @@ textarea:focus {
 
 .btn-cancel { background: var(--customer-bg-tertiary); color: var(--customer-text-secondary); }
 .btn-save { background: var(--theme-color, #ff6b6b); color: white; }
+.btn-danger-confirm {
+    background: #dc2626;
+    color: white;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+}
 
 /* Progress Bar Styles */
 .item-progress-track {
