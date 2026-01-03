@@ -358,7 +358,10 @@
         "loading_reports": "Cargando reportes...",
         "no_stats": "No hay estadísticas...",
         "no_history": "Sin datos históricos",
-        "no_orders_today": "Sin pedidos hoy"
+        "no_orders_today": "Sin pedidos hoy",
+        "daily_sales_by_dish": "Ventas del Día por Plato",
+        "quantity_sold": "Cantidad Vendida",
+        "revenue": "Ingresos"
     },
     "menu": {
         "scroll_hint": "Desliza para ver el menú ↓",

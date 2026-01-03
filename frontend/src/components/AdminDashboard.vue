@@ -309,6 +309,43 @@
             {{ $t('admin.no_stats') }}
           </div>
         </div>
+
+        <!-- Ventas del Día por Plato -->
+        <div class="section">
+          <h3 class="section-title">
+            <ShoppingBag :size="20" />
+            {{ $t('admin.daily_sales_by_dish') }}
+          </h3>
+          
+          <div v-if="loadingVentasPorPlato" class="loading-small">{{ $t('common.loading') }}</div>
+          
+          <div v-else-if="ventasPorPlato && ventasPorPlato.length > 0" class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>{{ $t('admin.dish') }}</th>
+                  <th>{{ $t('editor.form.category') }}</th>
+                  <th>{{ $t('admin.quantity_sold') }}</th>
+                  <th>{{ $t('admin.unit_price') }}</th>
+                  <th>{{ $t('admin.revenue') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="plato in ventasPorPlato" :key="plato.menu_item_id">
+                  <td><strong>{{ plato.nombre }}</strong></td>
+                  <td><span class="categoria-badge">{{ plato.categoria }}</span></td>
+                  <td class="text-center"><strong>{{ plato.cantidad_vendida }}</strong></td>
+                  <td class="text-center">${{ Number(plato.precio_unitario || 0).toFixed(2) }}</td>
+                  <td class="text-center"><strong>${{ Number(plato.ingresos_totales || 0).toFixed(2) }}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div v-else class="empty-state">
+            {{ $t('admin.no_stats') }}
+          </div>
+        </div>
       </template>
     </div>
 
@@ -538,6 +575,10 @@ const filtroFechaFin = ref('');
 // Top Platos
 const topPlatos = ref([]);
 const loadingTopPlatos = ref(false);
+
+// Ventas por Plato
+const ventasPorPlato = ref([]);
+const loadingVentasPorPlato = ref(false);
 
 // Propinas
 const propinasHoy = ref({
@@ -773,6 +814,23 @@ const cargarTopPlatos = async () => {
   }
 };
 
+// Cargar ventas por plato
+const cargarVentasPorPlato = async () => {
+  loadingVentasPorPlato.value = true;
+  try {
+    const params = {};
+    if (filtroFechaInicio.value) params.fecha_inicio = filtroFechaInicio.value;
+    if (filtroFechaFin.value) params.fecha_fin = filtroFechaFin.value;
+
+    const response = await api.getVentasPorPlato(params);
+    ventasPorPlato.value = response.data;
+  } catch (err) {
+    console.error('Error cargando ventas por plato:', err);
+  } finally {
+    loadingVentasPorPlato.value = false;
+  }
+};
+
 // Cargar propinas del día
 const cargarPropinaDelDia = async () => {
   try {
@@ -800,6 +858,7 @@ const aplicarFiltros = () => {
     cargarTiemposCocina();
     cargarTopPlatos();
     cargarPropinaDelDia();
+    cargarVentasPorPlato();
 };
 
 // ================= REAL-TIME =================
@@ -848,6 +907,7 @@ onMounted(() => {
   cargarTiemposCocina();
   cargarTopPlatos();
   cargarPropinaDelDia();
+  cargarVentasPorPlato();
   setupRealTime();
 });
 

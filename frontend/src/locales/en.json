@@ -354,7 +354,10 @@
         "loading_reports": "Loading reports...",
         "no_stats": "No statistics...",
         "no_history": "No history data",
-        "no_orders_today": "No orders today"
+        "no_orders_today": "No orders today",
+        "daily_sales_by_dish": "Daily Sales by Dish",
+        "quantity_sold": "Quantity Sold",
+        "revenue": "Revenue"
     },
     "menu": {
         "scroll_hint": "Scroll to see menu ↓",

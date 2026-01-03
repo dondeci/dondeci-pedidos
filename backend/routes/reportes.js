@@ -357,4 +357,67 @@ router.get('/propinas-hoy', async (req, res) => {
     }
 });
 
+// GET /api/reportes/ventas-por-plato - Ventas por plato del día (o rango)
+router.get('/ventas-por-plato', async (req, res) => {
+    try {
+        const { fecha_inicio, fecha_fin } = req.query;
+
+        const TIMEZONE = process.env.TIMEZONE || 'America/Bogota';
+        const localDate = `(p.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${TIMEZONE}')::date`;
+
+        // Si no hay filtros, usar el día actual
+        let whereClause = `WHERE ${localDate} = (now() AT TIME ZONE '${TIMEZONE}')::date 
+                           AND p.estado != 'cancelado'`;
+        let params = [];
+
+        if (fecha_inicio && fecha_fin) {
+            whereClause = `WHERE ${localDate} BETWEEN $1 AND $2 
+                           AND p.estado != 'cancelado'`;
+            params = [fecha_inicio, fecha_fin];
+        } else if (fecha_inicio) {
+            whereClause = `WHERE ${localDate} >= $1 
+                           AND p.estado != 'cancelado'`;
+            params = [fecha_inicio];
+        } else if (fecha_fin) {
+            whereClause = `WHERE ${localDate} <= $1 
+                           AND p.estado != 'cancelado'`;
+            params = [fecha_fin];
+        }
+
+        const query = `
+            SELECT 
+                mi.id as menu_item_id,
+                mi.nombre,
+                mi.categoria,
+                mi.precio as precio_unitario,
+                COUNT(pi.id) as cantidad_vendida,
+                SUM(pi.precio_unitario) as ingresos_totales
+            FROM menu_items mi
+            LEFT JOIN pedido_items pi ON mi.id = pi.menu_item_id
+            LEFT JOIN pedidos p ON pi.pedido_id = p.id
+            ${whereClause}
+            GROUP BY mi.id, mi.nombre, mi.categoria, mi.precio
+            HAVING COUNT(pi.id) > 0
+            ORDER BY cantidad_vendida DESC
+        `;
+
+        const ventas = await allAsync(query, params);
+
+        // Formatear los datos
+        const ventasFormateadas = ventas.map(v => ({
+            menu_item_id: v.menu_item_id,
+            nombre: v.nombre,
+            categoria: v.categoria,
+            precio_unitario: Number(v.precio_unitario || 0),
+            cantidad_vendida: Number(v.cantidad_vendida || 0),
+            ingresos_totales: Number(v.ingresos_totales || 0)
+        }));
+
+        res.json(ventasFormateadas);
+    } catch (error) {
+        console.error('Error en /ventas-por-plato:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 export default router;

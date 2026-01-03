@@ -227,6 +227,10 @@ export default {
     return api.get('/reportes/propinas-hoy', { params });
   },
 
+  getVentasPorPlato(params = {}) {
+    return api.get('/reportes/ventas-por-plato', { params });
+  },
+
 
   // ============= PÚBLICO (Sin autenticación) =============
   getPedidoStatusPublico(id) {
