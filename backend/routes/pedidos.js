@@ -977,8 +977,12 @@ router.post('/:id/items', async (req, res) => {
         const pedidoId = req.params.id;
         const { items } = req.body;
 
-        if (!items || items.length === 0) {
-            return res.status(400).json({ error: 'Se requieren items para agregar' });
+        console.log('📝 Agregar items - Pedido ID:', pedidoId);
+        console.log('📝 Items recibidos:', JSON.stringify(items, null, 2));
+
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            console.error('❌ Error: items no válido', { items, isArray: Array.isArray(items) });
+            return res.status(400).json({ error: 'Se requieren items para agregar (debe ser un array no vacío)' });
         }
 
         // Verificar que el pedido existe y no está en estado final
