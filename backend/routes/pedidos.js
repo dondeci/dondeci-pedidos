@@ -12,6 +12,9 @@ async function actualizarEstadisticasTiempo(menuItemId, tiempoReal) {
     const localDateExpr = `(now() AT TIME ZONE '${TIMEZONE}')::date`;
 
     try {
+        // ✅ FIX: Asegurar que tiempoReal sea un entero
+        const tiempoEntero = Math.round(Number(tiempoReal));
+
         await runAsync(`
             INSERT INTO item_time_stats 
             (menu_item_id, fecha, total_preparaciones, tiempo_promedio_minutos, tiempo_minimo_minutos, tiempo_maximo_minutos)
@@ -25,7 +28,7 @@ async function actualizarEstadisticasTiempo(menuItemId, tiempoReal) {
                 total_preparaciones = item_time_stats.total_preparaciones + 1,
                 tiempo_minimo_minutos = LEAST(item_time_stats.tiempo_minimo_minutos, EXCLUDED.tiempo_minimo_minutos),
                 tiempo_maximo_minutos = GREATEST(item_time_stats.tiempo_maximo_minutos, EXCLUDED.tiempo_maximo_minutos)
-        `, [menuItemId, tiempoReal]);
+        `, [menuItemId, tiempoEntero]);
     } catch (error) {
         console.error('Error updating stats (ignoring to prevent flow breakage):', error);
     }
