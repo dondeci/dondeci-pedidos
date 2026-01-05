@@ -128,6 +128,9 @@
                   </div>
                   <div class="mesa-meta">
                     <span class="meta-item">
+                       <User :size="14" /> {{ mesa.mesero || 'Sin mesero' }}
+                    </span>
+                    <span class="meta-item">
                       <Layers :size="14" /> {{ mesa.totalItems }} items
                     </span>
                     <span class="meta-item time-badge warning">
@@ -309,7 +312,8 @@ const mesasEnCocina = computed(() => {
         mesa_numero,
         items: [],
         expandida: mesasExpandidas.value.has(mesa_numero),
-        totalItems: 0
+        totalItems: 0,
+        mesero: pedido.mesero // Capture waiter name from first order
       };
     }
     
