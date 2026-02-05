@@ -278,7 +278,7 @@ model ItemTimeStat {
 }
 
 // ==========================================================
-// SUBSCRIPTION (Stripe Integration)
+// SUBSCRIPTION (Mercadopago Integration)
 // ==========================================================
 
 model Subscription {
