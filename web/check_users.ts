@@ -11,8 +11,8 @@ async function main() {
     })
     console.log('Users found:', users.length)
     users.forEach(u => {
-        if (u.username.includes('admin') || u.role.toLowerCase().includes('admin')) {
-            console.log(`User: ${u.username}, Role: '${u.role}', OrgId: ${u.organizationId}, OrgSlug: ${u.organization?.slug}`)
+        if (u.username?.includes('admin') || u.role.toLowerCase().includes('admin')) {
+            console.log(`User: ${u.username || 'N/A'}, Role: '${u.role}', OrgId: ${u.organizationId}, OrgSlug: ${u.organization?.slug}`)
         }
     })
 }

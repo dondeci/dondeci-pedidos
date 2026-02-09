@@ -64,8 +64,9 @@ export async function POST(request: NextRequest) {
             if (!userEmail) {
                 // Determine if username is email
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-                if (emailRegex.test(currentUser.username)) {
-                    userEmail = currentUser.username
+                const username = currentUser.username || ''
+                if (username && emailRegex.test(username)) {
+                    userEmail = username
                 } else {
                     // Fallback to constructed email
                     userEmail = `admin@${currentUser.organization.slug}.com`

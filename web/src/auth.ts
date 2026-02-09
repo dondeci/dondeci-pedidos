@@ -55,6 +55,11 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                         return null;
                     }
 
+                    if (!user.password) {
+                        console.log('User has no password set (OAuth user):', username);
+                        return null;
+                    }
+
                     const passwordsMatch = await bcrypt.compare(password, user.password);
                     if (passwordsMatch) {
                         // Generate new switch token if not exists
