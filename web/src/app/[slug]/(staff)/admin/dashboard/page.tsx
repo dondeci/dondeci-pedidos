@@ -587,7 +587,7 @@ export default function AdminDashboardPage() {
                 message={t('order_detail.delete_confirm')}
                 confirmText={t('common.delete')}
                 isDestructive={true}
-                isLoading={isDeleting}
+                loading={isDeleting}
             />
         </div>
     )

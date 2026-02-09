@@ -1,11 +1,12 @@
 'use client'
 
+import { Suspense } from 'react'
 import LoginForm from './login-form'
 import { PublicNavbar } from '@/components/public/navbar'
 import { PublicFooter } from '@/components/public/footer'
 import { Container } from '@/components/ui/container'
 import { useLanguage } from '@/components/providers/language-provider'
-import { UtensilsCrossed } from 'lucide-react'
+import { UtensilsCrossed, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
 export default function LoginPage() {
@@ -33,7 +34,13 @@ export default function LoginPage() {
 
                         {/* Login Form Card */}
                         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-8">
-                            <LoginForm />
+                            <Suspense fallback={
+                                <div className="flex flex-col items-center justify-center p-8 space-y-4">
+                                    <Loader2 className="animate-spin text-orange-600" size={48} />
+                                </div>
+                            }>
+                                <LoginForm />
+                            </Suspense>
                         </div>
 
                         {/* Register Link */}

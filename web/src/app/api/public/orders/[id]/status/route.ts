@@ -31,11 +31,13 @@ export async function PUT(
         })
 
         // Broadcast update via Ably
-        await publishOrderUpdate(order.organizationId, 'order-update', {
-            type: 'status-update',
-            orderId: id,
-            status
-        })
+        if (order.organizationId) {
+            await publishOrderUpdate(order.organizationId, 'order-update', {
+                type: 'status-update',
+                orderId: id,
+                status
+            })
+        }
 
         return NextResponse.json(updatedOrder)
     } catch (error) {

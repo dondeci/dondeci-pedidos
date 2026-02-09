@@ -4,8 +4,10 @@ import prisma from '@/lib/prisma'
 
 export async function GET(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
+    const resolvedParams = { id }
     try {
         const session = await auth()
         if (!session?.user?.id) {
@@ -23,7 +25,7 @@ export async function GET(
 
         const order = await prisma.order.findUnique({
             where: {
-                id: params.id,
+                id,
                 organizationId: user.organizationId
             },
             include: {
@@ -51,8 +53,9 @@ export async function GET(
 
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     try {
         const session = await auth()
         if (!session?.user?.id) {
@@ -73,7 +76,7 @@ export async function DELETE(
 
         await prisma.order.delete({
             where: {
-                id: params.id,
+                id,
                 organizationId: user.organizationId
             }
         })

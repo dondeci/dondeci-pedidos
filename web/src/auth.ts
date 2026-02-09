@@ -23,6 +23,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                     if (user) {
                         return {
                             ...user,
+                            switchToken: user.switchToken ?? undefined,
                             organizationId: user.organizationId ?? undefined,
                             organizationSlug: user.organization?.slug,
                         };
@@ -69,7 +70,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
 
                         return {
                             ...user,
-                            switchToken, // Return to be saved in session
+                            switchToken: switchToken ?? undefined, // Return to be saved in session
                             organizationId: user.organizationId ?? undefined,
                             organizationSlug: user.organization?.slug,
                         };
