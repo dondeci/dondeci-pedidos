@@ -69,21 +69,28 @@ export async function POST(request: NextRequest) {
         // Extract metadata from payment
         const metadata = payment.metadata as any
 
-        console.log('Payment metadata:', JSON.stringify(metadata, null, 2))
+        console.log('Payment metadata RAW:', JSON.stringify(metadata, null, 2))
 
         if (!metadata) {
             console.error('No metadata in payment:', payment.id)
             return NextResponse.json({ error: 'Missing metadata' }, { status: 400 })
         }
 
-        // Extract fields - Mercado Pago might nest them differently
-        const plan = metadata.plan
-        const restaurantName = metadata.restaurant_name || metadata.restaurantName
-        const slug = metadata.slug
-        const contactEmail = metadata.contact_email || metadata.contactEmail
-        const adminName = metadata.admin_name || metadata.adminName
-        const username = metadata.username
-        const password = metadata.password
+        // Helper to get value regardless of snake_case or camelCase
+        const getMeta = (key: string) => {
+            return metadata[key] ||
+                metadata[key.toLowerCase()] ||
+                metadata[key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)] ||
+                metadata[key.replace(/_([a-z])/g, (g) => g[1].toUpperCase())]
+        }
+
+        const plan = getMeta('plan')
+        const restaurantName = getMeta('restaurantName') || getMeta('restaurant_name')
+        const slug = getMeta('slug')
+        const contactEmail = getMeta('contactEmail') || getMeta('contact_email')
+        const adminName = getMeta('adminName') || getMeta('admin_name')
+        const username = getMeta('username')
+        const password = getMeta('password')
 
         console.log('Extracted metadata:', {
             plan,
@@ -120,7 +127,9 @@ export async function POST(request: NextRequest) {
         const hashedPassword = await bcrypt.hash(password, 10)
 
         // Create organization, admin user, and subscription in a transaction
+        console.log('Starting DB transaction for organization creation...')
         const result = await prisma.$transaction(async (tx: any) => {
+            console.log('Checking for existing user with:', { contactEmail, username })
             // 1. Create Organization
             const organization = await tx.organization.create({
                 data: {

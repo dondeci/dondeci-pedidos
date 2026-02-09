@@ -41,10 +41,10 @@ export async function POST(request: NextRequest) {
                 auto_return: 'approved',
                 metadata: {
                     plan,
-                    restaurantName,
+                    restaurant_name: restaurantName,
                     slug,
-                    contactEmail,
-                    adminName,
+                    contact_email: contactEmail,
+                    admin_name: adminName,
                     username,
                     password, // Note: In production, hash this before storing
                 },
