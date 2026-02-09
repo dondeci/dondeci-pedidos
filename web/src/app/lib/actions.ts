@@ -55,9 +55,9 @@ export async function switchAccount(
 
 
 
-export async function googleAuthenticate() {
+export async function googleAuthenticate(redirectTo?: string) {
     try {
-        await signIn('google')
+        await signIn('google', { redirectTo: redirectTo || '/admin/dashboard' })
     } catch (error) {
         // Signin can fail for all sorts of reasons
         // But the redirect is thrown as an error, so we need to rethrow it

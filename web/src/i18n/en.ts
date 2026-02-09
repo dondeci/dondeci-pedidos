@@ -67,15 +67,21 @@ export const en = {
     'pricing.perMonth': '/month',
 
     'pricing.starter.name': 'Starter',
-    'pricing.starter.desc': 'Perfect for small restaurants',
+    'pricing.starter.description': 'Perfect for small restaurants',
     'pricing.professional.name': 'Professional',
-    'pricing.professional.desc': 'Ideal for growing restaurants',
+    'pricing.professional.description': 'Ideal for growing restaurants',
     'pricing.enterprise.name': 'Enterprise',
-    'pricing.enterprise.desc': 'For chains and multiple locations',
+    'pricing.enterprise.description': 'For chains and multiple locations',
 
     'pricing.faq.title': 'Frequently Asked Questions',
     'pricing.faq.q1': 'Can I change plans at any time?',
-    'pricing.faq.a1': 'Yes, you can upgrade or downgrade your plan whenever you need.',
+    'pricing.faq.a1': 'Yes, you can upgrade or downgrade your plan whenever you need. Changes will be reflected in your next billing cycle.',
+    'pricing.faq.q2': 'Are there any setup or configuration costs?',
+    'pricing.faq.a2': 'No, all our plans include initial configuration at no additional cost.',
+    'pricing.faq.q3': 'What payment methods do you accept?',
+    'pricing.faq.a3': 'We accept credit cards, debit cards, and bank transfers. Billing is monthly.',
+    'pricing.faq.q4': 'Do you offer a trial period?',
+    'pricing.faq.a4': 'Yes, all plans include a 14-day free trial with no credit card required.',
 
     // Pricing Features
     'pricing.feature.tables5': 'Up to 5 tables',

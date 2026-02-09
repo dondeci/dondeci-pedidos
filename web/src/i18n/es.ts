@@ -67,11 +67,11 @@ export const es = {
     'pricing.perMonth': '/mes',
 
     'pricing.starter.name': 'Starter',
-    'pricing.starter.desc': 'Perfecto para restaurantes pequeños',
+    'pricing.starter.description': 'Perfecto para restaurantes pequeños',
     'pricing.professional.name': 'Professional',
-    'pricing.professional.desc': 'Ideal para restaurantes en crecimiento',
+    'pricing.professional.description': 'Ideal para restaurantes en crecimiento',
     'pricing.enterprise.name': 'Enterprise',
-    'pricing.enterprise.desc': 'Para cadenas y múltiples locales',
+    'pricing.enterprise.description': 'Para cadenas y múltiples locales',
 
     'pricing.faq.title': 'Preguntas Frecuentes',
     'pricing.faq.q1': '¿Puedo cambiar de plan en cualquier momento?',
