@@ -10,13 +10,12 @@ export async function POST(request: NextRequest) {
         console.log('--- WEBHOOK RECEIVED ---')
         console.log('Body:', JSON.stringify(body, null, 2))
 
-        // 1. Get Payment ID (handle both notification formats)
-        // Format A: { type: 'payment', data: { id: '...' } }
-        // Format B: { topic: 'payment', id: '...' }
-        let paymentId = body.data?.id || body.id || (body.resource && body.resource.split('/').pop())
+        // 1. Get Payment ID and validate type
+        const type = body.type || body.topic
+        const paymentId = body.data?.id || body.id || (body.resource && body.resource.split('/').pop())
 
-        if (!paymentId || (body.type && body.type !== 'payment' && body.topic !== 'payment')) {
-            console.log('Ignoring non-payment notification:', body.type || body.topic)
+        if (!paymentId || type !== 'payment') {
+            console.log(`Ignoring notification: type=${type}, id=${paymentId}`)
             return NextResponse.json({ received: true })
         }
 
